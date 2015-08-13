@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="member">
+
+	<typeAlias alias="member" type="wcms.model.Member" />
+	
+	
+	<resultMap id="member-resultMap" class="member" >
+		<result property="user" column="user" />		
+		<result property="id" column="id" />
+		<result property="name" column="name" />
+		<result property="pass" column="pass" />
+		<result property="email" column="email" />		
+		<result property="authority" column="authority" />				
+	</resultMap>
+
+
+	<statement id="SelectMember"  resultMap="member-resultMap"  parameterClass="member">
+		SELECT * FROM user WHERE id=#id# 
+	</statement>
+	
+	
+	  	
+
+	
+
+</sqlMap>
