@@ -3,7 +3,9 @@ import { PostResponse,
         SearchParams,
         PostDetailResponse,
         SearchChatRoomParams,
-        ChatRoomPostResponse} from './types';
+        ChatRoomPostResponse,
+        SearchMessgeInfoParams,
+        MessgeInfoResponse} from './types';
 
 export const fetchPosts = async (params:SearchParams): Promise<PostResponse> => {     
     const res = await apiClient.post("/dashboard/list", params);
@@ -40,6 +42,11 @@ export const insertData = async (params:SearchParams): Promise<PostResponse> => 
         return res.data;
 };
 
+
+export const loadMessgeInfoPosts = async (params:SearchMessgeInfoParams): Promise<MessgeInfoResponse> => {     
+    const res = await apiClient.post("/chat/chatMessgeLoadList", params);
+    return res.data;
+ };
 
 export const chatRoomList = async (params:SearchChatRoomParams): Promise<ChatRoomPostResponse> => {           
         const res = await apiClient.post("/chat/chatRoomList", params);        

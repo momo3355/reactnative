@@ -107,4 +107,59 @@ export interface ChatPostState {
     errorMsg?: string | null; 
     chatLoadPosts: (params:SearchChatRoomParams) => Promise<void>;
     chatFileUpload: (params: SearchChatRoomParams) => Promise<ChatFileUploadResponse>;
+    loadMessgeInfoPosts: (params: SearchMessgeInfoParams) => Promise<MessgeInfoResponse>;
+    
 }
+
+export interface MessgeInfoValue {
+  id : string;
+  type : string;
+  userName : string;
+  roomId : string;
+  sender : string;
+  message : string;
+  imageInfo?: string;
+  isRead : string;
+  reUserId : string;
+  cretDate : string;
+  imageHeight?: number;
+  userList?: string[];
+}
+
+// 검색 파라미터 타입 정의 (확장)
+export interface SearchMessgeInfoParams {
+  id? : number;
+  roomId? : string;  
+}
+
+// 검색 파라미터 타입 정의 (확장)
+export interface MessgeInfoResponse {
+  success: boolean;
+  chatMessageLoadCount : number;
+  messageInfoList: MessgeInfoValue[];  
+  errorMsg?: string;
+}
+
+export interface ChatRoomProps {
+  roomId: string;
+  onBack: () => void;
+  token: string;
+  userId: string;
+  userName: string;
+}
+
+export interface DateSeparator {
+  id: string;
+  type: 'DATE_SEPARATOR';
+  date: string;
+}
+
+export interface SelectedImage {
+  uri: string;
+  type: string;
+  name: string;
+  size: number;
+  id: string;
+}
+
+export type ChatItem = MessgeInfoValue | DateSeparator;

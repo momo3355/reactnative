@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { SearchChatRoomParams, ChatPostState, ChatFileUploadResponse} from './types';
-import { chatRoomList, chatFileUpload} from './api';
+import { SearchChatRoomParams, ChatPostState, ChatFileUploadResponse, SearchMessgeInfoParams, MessgeInfoResponse} from './types';
+import { chatRoomList, chatFileUpload, loadMessgeInfoPosts,} from './api';
 
   
 export const chatPostStore = create<ChatPostState>((set) => ({
@@ -22,7 +22,46 @@ export const chatPostStore = create<ChatPostState>((set) => ({
       }
   },
 
+ loadMessgeInfoPosts:async (params: SearchMessgeInfoParams): Promise<MessgeInfoResponse> => {
+    set({ loading: true, error: null });
+    try {
+      const data = await loadMessgeInfoPosts(params);
+      
+      // 성공적으로 데이터를 받았을 때
+      if (data.success) {
+        return {
+          success: true,
+          chatMessageLoadCount: data.chatMessageLoadCount,
+          messageInfoList: data.messageInfoList,
+          errorMsg: data.errorMsg
+        };
+      } else {
+        // 서버에서 실패 응답을 받았을 때
+        set({ error: data.errorMsg || '메시지를 불러오는 데 실패했습니다.' });
+        return {
+          success: false,
+          chatMessageLoadCount: 0,
+          messageInfoList: [],
+          errorMsg: data.errorMsg || '메시지를 불러오는 데 실패했습니다.'
+        };
+      }
+    } catch (e) {
+      const errorMessage = '메시지를 불러오는 데 실패했습니다.';
+      set({ error: errorMessage });
+      console.error('loadMessgeInfoPosts error:', e);
+      
+      return {
+        success: false,
+        chatMessageLoadCount: 0,
+        messageInfoList: [],
+        errorMsg: errorMessage
+      };
+    } finally {
+      set({ loading: false });
+    }
+  },
 
+  
 // 데이터 삽입 함수 수정
 chatFileUpload: async (params: SearchChatRoomParams): Promise<ChatFileUploadResponse> => {
   set({ loading: true, error: null });
