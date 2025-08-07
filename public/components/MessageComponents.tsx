@@ -1,20 +1,21 @@
+/* eslint-disable radix */
 import React from 'react';
 import { View, Text } from 'react-native';
 import { styles } from '../styles/ChatRoom.styles';
 
 // 읽음 상태 컴포넌트
-export const ReadStatus: React.FC<{ 
-  isRead: string; 
-  isMyMessage: boolean; 
+export const ReadStatus: React.FC<{
+  isRead: string;
+  isMyMessage: boolean;
 }> = React.memo(({ isRead, isMyMessage }) => {
   const readCount = parseInt(isRead);
-  
-  if (readCount <= 0) return null;
-  
+
+  if (readCount <= 0) {return null;}
+
   return (
     <Text style={[
       styles.readStatusText,
-      isMyMessage ? styles.myReadStatus : styles.receivedReadStatus
+      isMyMessage ? styles.myReadStatus : styles.receivedReadStatus,
     ]}>
       {readCount}
     </Text>
@@ -22,8 +23,8 @@ export const ReadStatus: React.FC<{
 });
 
 // 날짜 구분선 컴포넌트
-export const DateSeparator: React.FC<{ 
-  date: string; 
+export const DateSeparator: React.FC<{
+  date: string;
 }> = React.memo(({ date }) => (
   <View style={styles.dateSeparatorContainer}>
     <View style={styles.dateSeparatorLine} />
@@ -74,5 +75,5 @@ export default {
   ReadStatus,
   DateSeparator,
   TextMessage,
-  EnterMessage
+  EnterMessage,
 };

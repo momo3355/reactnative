@@ -100,7 +100,7 @@ export interface ChatFileUploadResponse {
 }
 
 export interface ChatPostState {
-    posts: ChatRoomPostsValue[];  
+    posts: ChatRoomPostsValue[];
     loading: boolean; // 로딩 상태 추가
     error: string | null; // 에러 메시지 상태 추가 (초기값은 null)
     success?: boolean;
@@ -108,7 +108,6 @@ export interface ChatPostState {
     chatLoadPosts: (params:SearchChatRoomParams) => Promise<void>;
     chatFileUpload: (params: SearchChatRoomParams) => Promise<ChatFileUploadResponse>;
     loadMessgeInfoPosts: (params: SearchMessgeInfoParams) => Promise<MessgeInfoResponse>;
-    
 }
 
 export interface MessgeInfoValue {
@@ -163,3 +162,5 @@ export interface SelectedImage {
 }
 
 export type ChatItem = MessgeInfoValue | DateSeparator;
+
+// 🔥 인증 관련 타입들은 ../../types/auth 파일에서 관리하므로 여기서는 제거

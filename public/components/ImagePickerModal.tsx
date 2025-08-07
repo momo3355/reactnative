@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
 import {
   Modal,
@@ -38,7 +39,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
 }) => {
   const renderPhotoItem = ({ item }: { item: any }) => {
     const isSelected = selectedPhotoIds.has(item.node.image.uri);
-    
+
     return (
       <TouchableOpacity
         style={styles.photoItem}
@@ -69,7 +70,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
         </View>
       );
     }
-    
+
     if (!hasMorePhotos && galleryPhotos.length > 0) {
       return (
         <View style={styles.endOfListContainer}>
@@ -77,7 +78,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
         </View>
       );
     }
-    
+
     return null;
   };
 
@@ -97,13 +98,13 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
           <Text style={styles.photoPickerTitle}>
             사진 선택 ({selectedPhotoIds.size}/10)
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={onConfirm}
             disabled={selectedPhotoIds.size === 0}
           >
             <Text style={[
               styles.confirmButtonText,
-              { opacity: selectedPhotoIds.size === 0 ? 0.5 : 1 }
+              { opacity: selectedPhotoIds.size === 0 ? 0.5 : 1 },
             ]}>
               확인
             </Text>

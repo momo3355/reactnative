@@ -1,10 +1,11 @@
+/* eslint-disable radix */
 import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import { 
-  FCMTokenState, 
-  FCMPermissionState, 
-  FCMMessageState, 
+import {
+  FCMTokenState,
+  FCMPermissionState,
+  FCMMessageState,
   FCMServiceConfig,
   FCMEventListener,
   FCMEventType,
@@ -12,7 +13,8 @@ import {
   FCMInitOptions,
   FCMMessageData,
   FCMNotificationResult,
-  FCMMessageHandlerFunction
+  FCMMessageHandlerFunction,
+  IFCMMessageHandler,
 } from '../types/fcm';
 
 // =============================================================================
@@ -23,7 +25,7 @@ import {
  * FCM 메시지 핸들러 클래스
  * 메시지 수신, 파싱, 처리를 담당
  */
-export class FCMMessageHandler {
+export class FCMMessageHandler implements IFCMMessageHandler {
   private navigation: any = null;
   private enableLogging: boolean = true;
   private messaging = messaging();
@@ -46,13 +48,24 @@ export class FCMMessageHandler {
   private parseMessageData(remoteMessage: FirebaseMessagingTypes.RemoteMessage): FCMMessageData {
     const data = remoteMessage.data || {};
 
+    // 안전한 문자열 변환 함수
+    const toString = (value: string | object | undefined): string | undefined => {
+      if (typeof value === 'string') {
+        return value;
+      }
+      if (value && typeof value === 'object') {
+        return JSON.stringify(value);
+      }
+      return undefined;
+    };
+
     return {
       type: (data.type as FCMMessageData['type']) || 'general',
-      roomId: data.roomId,
-      postId: data.postId,
-      senderId: data.senderId,
-      senderName: data.senderName,
-      messageId: data.messageId
+      roomId: toString(data.roomId),
+      postId: toString(data.postId),
+      senderId: toString(data.senderId),
+      senderName: toString(data.senderName),
+      messageId: toString(data.messageId),
     };
   }
 
@@ -80,7 +93,7 @@ export class FCMMessageHandler {
           {
             text: '확인',
             style: 'default',
-            onPress: () => resolve({ success: true, action: 'alert' })
+            onPress: () => resolve({ success: true, action: 'alert' }),
           },
           {
             text: '보기',
@@ -88,8 +101,8 @@ export class FCMMessageHandler {
               const result = this.navigateFromMessage(messageData);
               resolve(result);
             },
-            style: 'default'
-          }
+            style: 'default',
+          },
         ]
       );
     });
@@ -139,7 +152,7 @@ export class FCMMessageHandler {
       return {
         success: false,
         error: 'Navigation not available',
-        action: 'ignore'
+        action: 'ignore',
       };
     }
 
@@ -151,7 +164,7 @@ export class FCMMessageHandler {
             return {
               success: true,
               action: 'navigate',
-              destination: `ChatRoom(${messageData.roomId})`
+              destination: `ChatRoom(${messageData.roomId})`,
             };
           }
           break;
@@ -162,7 +175,7 @@ export class FCMMessageHandler {
             return {
               success: true,
               action: 'navigate',
-              destination: `PostDetail(${messageData.postId})`
+              destination: `PostDetail(${messageData.postId})`,
             };
           }
           break;
@@ -172,7 +185,7 @@ export class FCMMessageHandler {
           return {
             success: true,
             action: 'navigate',
-            destination: 'Main'
+            destination: 'Main',
           };
       }
 
@@ -181,14 +194,14 @@ export class FCMMessageHandler {
       return {
         success: true,
         action: 'navigate',
-        destination: 'Main (fallback)'
+        destination: 'Main (fallback)',
       };
     } catch (error) {
       console.error('❌ [FCM] 네비게이션 오류:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Navigation error',
-        action: 'ignore'
+        action: 'ignore',
       };
     }
   }
@@ -214,7 +227,7 @@ export class FCMMessageHandler {
    * 디버그 정보 출력
    */
   logMessageDetails(remoteMessage: FirebaseMessagingTypes.RemoteMessage): void {
-    if (!this.enableLogging) return;
+    if (!this.enableLogging) {return;}
 
     console.log('📊 [FCM] 메시지 상세 정보:');
     console.log('  • 제목:', remoteMessage.notification?.title || '없음');
@@ -234,25 +247,25 @@ export class FCMMessageHandler {
  */
 export class FCMService {
   private static instance: FCMService;
-  
+
   // 상태 관리
   private tokenState: FCMTokenState = {
     token: null,
     isLoading: false,
     error: null,
-    lastUpdated: null
+    lastUpdated: null,
   };
 
   private permissionState: FCMPermissionState = {
     granted: false,
     status: messaging.AuthorizationStatus.NOT_DETERMINED,
-    canRequest: true
+    canRequest: true,
   };
 
   private messageState: FCMMessageState = {
     lastMessage: null,
     messageHistory: [],
-    unreadCount: 0
+    unreadCount: 0,
   };
 
   // 설정
@@ -261,15 +274,15 @@ export class FCMService {
     maxRetries: 3,
     retryDelay: 1000,
     tokenRefreshInterval: 24 * 60 * 60 * 1000, // 24시간
-    messageHistoryLimit: 50
+    messageHistoryLimit: 50,
   };
 
   // 이벤트 리스너
   private eventListeners: FCMEventListener[] = [];
-  
+
   // 메시지 핸들러
-  private messageHandler: FCMMessageHandler | null = null;
-  
+  private messageHandler: IFCMMessageHandler | null = null;
+
   // 초기화 상태
   private isInitialized = false;
   private initPromise: Promise<void> | null = null;
@@ -281,7 +294,7 @@ export class FCMService {
   private readonly STORAGE_KEYS = {
     FCM_TOKEN: 'fcm_token',
     TOKEN_TIMESTAMP: 'fcm_token_timestamp',
-    PERMISSION_STATUS: 'fcm_permission_status'
+    PERMISSION_STATUS: 'fcm_permission_status',
   };
 
   private constructor() {
@@ -328,9 +341,12 @@ export class FCMService {
         this.config = { ...this.config, ...options.config };
       }
 
-      // 메시지 핸들러 설정
+      // 메시지 핸들러 설정 - 기본 핸들러 생성
+      this.createDefaultMessageHandler();
+      
+      // 커스텀 핸들러 처리
       if (options?.customMessageHandler) {
-        this.messageHandler = new FCMMessageHandler();
+        this.setupCustomMessageHandler(options.customMessageHandler);
       }
 
       // 토큰 복원
@@ -354,8 +370,101 @@ export class FCMService {
   }
 
   /**
-   * 토큰 요청 및 획득
+   * 기본 메시지 핸들러 생성
    */
+  private createDefaultMessageHandler(): void {
+    try {
+      this.messageHandler = new FCMMessageHandler();
+      this.log('🔧 기본 메시지 핸들러 생성됨');
+    } catch (error) {
+      this.log('❌ 기본 메시지 핸들러 생성 실패:', error);
+      // 대비책: 기초적인 핸들러 객체 생성
+      this.messageHandler = {
+        handleForegroundMessage: async (message: FirebaseMessagingTypes.RemoteMessage) => {
+          console.log('📱 기본 포그라운드 핸들러:', message.notification?.title);
+          return { success: true, action: 'ignore' };
+        },
+        handleBackgroundNotificationOpen: async (message: FirebaseMessagingTypes.RemoteMessage) => {
+          console.log('🔙 기본 백그라운드 핸들러:', message.notification?.title);
+          return { success: true, action: 'ignore' };
+        },
+        handleAppLaunchFromNotification: async (message: FirebaseMessagingTypes.RemoteMessage) => {
+          console.log('🚀 기본 앱 시작 핸들러:', message.notification?.title);
+          return { success: true, action: 'ignore' };
+        },
+      } as IFCMMessageHandler;
+    }
+  }
+
+  /**
+   * 커스텀 메시지 핸들러 설정
+   */
+  private setupCustomMessageHandler(customHandler: FCMMessageHandlerFunction | IFCMMessageHandler): void {
+    try {
+      if (typeof customHandler === 'function') {
+        // 함수 타입인 경우
+        this.log('🔧 함수 타입 커스텀 핸들러 설정');
+        
+        // 함수를 안전하게 래핑
+        const wrappedHandler: IFCMMessageHandler = {
+          handleForegroundMessage: async (message) => {
+            try {
+              return await customHandler(message);
+            } catch (error) {
+              this.log('❌ 커스텀 핸들러 오류 (foreground):', error);
+              return { success: false, action: 'ignore', error: 'Custom handler error' };
+            }
+          },
+          handleBackgroundNotificationOpen: async (message) => {
+            try {
+              return await customHandler(message);
+            } catch (error) {
+              this.log('❌ 커스텀 핸들러 오류 (background):', error);
+              return { success: false, action: 'ignore', error: 'Custom handler error' };
+            }
+          },
+          handleAppLaunchFromNotification: async (message) => {
+            try {
+              return await customHandler(message);
+            } catch (error) {
+              this.log('❌ 커스텀 핸들러 오류 (app launch):', error);
+              return { success: false, action: 'ignore', error: 'Custom handler error' };
+            }
+          },
+        };
+        
+        this.messageHandler = wrappedHandler;
+        
+      } else if (customHandler && typeof customHandler === 'object') {
+        // 객체 타입인 경우
+        this.log('🔧 객체 타입 커스텀 핸들러 설정');
+        
+        // 메서드 존재 여부 확인 후 안전하게 설정
+        const safeHandler: IFCMMessageHandler = {
+          handleForegroundMessage: customHandler.handleForegroundMessage || 
+            this.messageHandler?.handleForegroundMessage ||
+            (async () => ({ success: true, action: 'ignore' })),
+          handleBackgroundNotificationOpen: customHandler.handleBackgroundNotificationOpen ||
+            this.messageHandler?.handleBackgroundNotificationOpen ||
+            (async () => ({ success: true, action: 'ignore' })),
+          handleAppLaunchFromNotification: customHandler.handleAppLaunchFromNotification ||
+            this.messageHandler?.handleAppLaunchFromNotification ||
+            (async () => ({ success: true, action: 'ignore' })),
+        };
+        
+        this.messageHandler = safeHandler;
+        
+      } else {
+        this.log('⚠️ 잘못된 커스텀 핸들러 타입, 기본 핸들러 유지');
+      }
+      
+      this.log('✅ 커스텀 메시지 핸들러 설정 완료');
+      
+    } catch (error) {
+      this.log('❌ 커스텀 메시지 핸들러 설정 실패:', error);
+      // 오류 발생 시 기본 핸들러 유지
+    }
+  }
   async requestToken(): Promise<string | null> {
     try {
       this.log('🎫 FCM 토큰 요청 시작');
@@ -370,7 +479,7 @@ export class FCMService {
 
       // 토큰 획득
       const token = await messaging().getToken();
-      
+
       if (!token) {
         throw new Error('FCM 토큰을 획득할 수 없습니다');
       }
@@ -380,7 +489,7 @@ export class FCMService {
         token,
         isLoading: false,
         error: null,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
       };
 
       // 스토리지 저장
@@ -388,14 +497,14 @@ export class FCMService {
 
       this.log('✅ FCM 토큰 획득 성공');
       this.emitEvent('token_received', { token });
-      
+
       return token;
 
     } catch (error) {
       this.log('❌ FCM 토큰 획득 실패:', error);
       this.tokenState.isLoading = false;
       this.tokenState.error = error instanceof Error ? error.message : 'Token request failed';
-      
+
       this.emitEvent('error_occurred', { error });
       return null;
     }
@@ -415,7 +524,7 @@ export class FCMService {
       this.permissionState = {
         granted,
         status: authStatus,
-        canRequest: authStatus !== messaging.AuthorizationStatus.DENIED
+        canRequest: authStatus !== messaging.AuthorizationStatus.DENIED,
       };
 
       await AsyncStorage.setItem(this.STORAGE_KEYS.PERMISSION_STATUS, authStatus.toString());
@@ -426,7 +535,7 @@ export class FCMService {
       } else {
         this.log('❌ FCM 권한 거부');
         this.emitEvent('permission_denied');
-        
+
         if (!this.permissionState.canRequest) {
           Alert.alert(
             '알림 권한 필요',
@@ -454,8 +563,13 @@ export class FCMService {
     // 포그라운드 메시지 수신
     if (options?.enableForegroundHandler !== false) {
       const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
-        this.log('📱 포그라운드 메시지 수신');
-        await this.handleForegroundMessage(remoteMessage);
+        try {
+          this.log('📱 포그라운드 메시지 수신');
+          await this.handleForegroundMessage(remoteMessage);
+        } catch (error) {
+          this.log('❌ 포그라운드 메시지 리스너 오류:', error);
+          // Promise rejection 방지
+        }
       });
       this.unsubscribeFunctions.push(unsubscribeForeground);
     }
@@ -463,16 +577,26 @@ export class FCMService {
     // 백그라운드 알림 클릭
     if (options?.enableNotificationOpenHandler !== false) {
       const unsubscribeBackground = messaging().onNotificationOpenedApp((remoteMessage) => {
-        this.log('🔙 백그라운드 알림 클릭');
-        this.handleBackgroundNotificationOpen(remoteMessage);
+        try {
+          this.log('🔙 백그라운드 알림 클릭');
+          this.handleBackgroundNotificationOpen(remoteMessage);
+        } catch (error) {
+          this.log('❌ 백그라운드 알림 리스너 오류:', error);
+          // Promise rejection 방지
+        }
       });
       this.unsubscribeFunctions.push(unsubscribeBackground);
     }
 
     // 토큰 갱신 리스너
     const unsubscribeTokenRefresh = messaging().onTokenRefresh(async (token) => {
-      this.log('🔄 FCM 토큰 갱신');
-      await this.handleTokenRefresh(token);
+      try {
+        this.log('🔄 FCM 토큰 갱신');
+        await this.handleTokenRefresh(token);
+      } catch (error) {
+        this.log('❌ 토큰 갱신 리스너 오류:', error);
+        // Promise rejection 방지
+      }
     });
     this.unsubscribeFunctions.push(unsubscribeTokenRefresh);
 
@@ -488,8 +612,13 @@ export class FCMService {
       const remoteMessage = await messaging().getInitialNotification();
       if (remoteMessage) {
         this.log('🚀 앱 종료 상태에서 알림 클릭으로 시작');
-        setTimeout(() => {
-          this.handleAppLaunchFromNotification(remoteMessage);
+        setTimeout(async () => {
+          try {
+            await this.handleAppLaunchFromNotification(remoteMessage);
+          } catch (error) {
+            this.log('❌ 앱 시작 알림 처리 오류:', error);
+            // Promise rejection 방지
+          }
         }, 3000);
       }
     } catch (error) {
@@ -502,11 +631,19 @@ export class FCMService {
    */
   private async handleForegroundMessage(remoteMessage: FirebaseMessagingTypes.RemoteMessage): Promise<void> {
     this.addToMessageHistory(remoteMessage);
-    
-    if (this.messageHandler) {
-      await this.messageHandler.handleForegroundMessage(remoteMessage);
+
+    if (this.messageHandler && 
+        typeof this.messageHandler.handleForegroundMessage === 'function') {
+      try {
+        await this.messageHandler.handleForegroundMessage(remoteMessage);
+      } catch (error) {
+        this.log('❌ 포그라운드 메시지 처리 오류:', error);
+        // Promise rejection을 방지하기 위해 에러를 삼킴
+      }
+    } else {
+      this.log('⚠️ 메시지 핸들러가 설정되지 않음 또는 함수가 아님 (foreground)');
     }
-    
+
     this.emitEvent('message_received', { message: remoteMessage, type: 'foreground' });
   }
 
@@ -515,11 +652,19 @@ export class FCMService {
    */
   private async handleBackgroundNotificationOpen(remoteMessage: FirebaseMessagingTypes.RemoteMessage): Promise<void> {
     this.addToMessageHistory(remoteMessage);
-    
-    if (this.messageHandler) {
-      await this.messageHandler.handleBackgroundNotificationOpen(remoteMessage);
+
+    if (this.messageHandler && 
+        typeof this.messageHandler.handleBackgroundNotificationOpen === 'function') {
+      try {
+        await this.messageHandler.handleBackgroundNotificationOpen(remoteMessage);
+      } catch (error) {
+        this.log('❌ 백그라운드 알림 처리 오류:', error);
+        // Promise rejection을 방지하기 위해 에러를 삼킴
+      }
+    } else {
+      this.log('⚠️ 메시지 핸들러가 설정되지 않음 또는 함수가 아님 (background)');
     }
-    
+
     this.emitEvent('message_received', { message: remoteMessage, type: 'background' });
   }
 
@@ -528,11 +673,19 @@ export class FCMService {
    */
   private async handleAppLaunchFromNotification(remoteMessage: FirebaseMessagingTypes.RemoteMessage): Promise<void> {
     this.addToMessageHistory(remoteMessage);
-    
-    if (this.messageHandler) {
-      await this.messageHandler.handleAppLaunchFromNotification(remoteMessage);
+
+    if (this.messageHandler && 
+        typeof this.messageHandler.handleAppLaunchFromNotification === 'function') {
+      try {
+        await this.messageHandler.handleAppLaunchFromNotification(remoteMessage);
+      } catch (error) {
+        this.log('❌ 앱 시작 알림 처리 오류:', error);
+        // Promise rejection을 방지하기 위해 에러를 삼킴
+      }
+    } else {
+      this.log('⚠️ 메시지 핸들러가 설정되지 않음 또는 함수가 아님 (app launch)');
     }
-    
+
     this.emitEvent('message_received', { message: remoteMessage, type: 'app_launch' });
   }
 
@@ -542,7 +695,7 @@ export class FCMService {
   private async handleTokenRefresh(token: string): Promise<void> {
     this.tokenState.token = token;
     this.tokenState.lastUpdated = Date.now();
-    
+
     await this.saveTokenToStorage(token);
     this.emitEvent('token_refreshed', { token });
   }
@@ -553,12 +706,12 @@ export class FCMService {
   private addToMessageHistory(remoteMessage: FirebaseMessagingTypes.RemoteMessage): void {
     this.messageState.lastMessage = remoteMessage;
     this.messageState.messageHistory.unshift(remoteMessage);
-    
+
     // 히스토리 제한
     if (this.messageState.messageHistory.length > this.config.messageHistoryLimit!) {
       this.messageState.messageHistory = this.messageState.messageHistory.slice(0, this.config.messageHistoryLimit!);
     }
-    
+
     this.messageState.unreadCount++;
   }
 
@@ -569,7 +722,7 @@ export class FCMService {
     try {
       const [token, timestamp] = await Promise.all([
         AsyncStorage.getItem(this.STORAGE_KEYS.FCM_TOKEN),
-        AsyncStorage.getItem(this.STORAGE_KEYS.TOKEN_TIMESTAMP)
+        AsyncStorage.getItem(this.STORAGE_KEYS.TOKEN_TIMESTAMP),
       ]);
 
       if (token) {
@@ -590,7 +743,7 @@ export class FCMService {
       const timestamp = Date.now().toString();
       await Promise.all([
         AsyncStorage.setItem(this.STORAGE_KEYS.FCM_TOKEN, token),
-        AsyncStorage.setItem(this.STORAGE_KEYS.TOKEN_TIMESTAMP, timestamp)
+        AsyncStorage.setItem(this.STORAGE_KEYS.TOKEN_TIMESTAMP, timestamp),
       ]);
     } catch (error) {
       this.log('⚠️ 토큰 저장 실패:', error);
@@ -609,7 +762,7 @@ export class FCMService {
       this.permissionState = {
         granted,
         status: authStatus,
-        canRequest: authStatus !== messaging.AuthorizationStatus.DENIED
+        canRequest: authStatus !== messaging.AuthorizationStatus.DENIED,
       };
     } catch (error) {
       this.log('⚠️ 권한 상태 확인 실패:', error);
@@ -619,7 +772,7 @@ export class FCMService {
   /**
    * 메시지 핸들러 설정
    */
-  setMessageHandler(handler: FCMMessageHandler): void {
+  setMessageHandler(handler: IFCMMessageHandler): void {
     this.messageHandler = handler;
     this.log('🔧 메시지 핸들러 설정됨');
   }
@@ -672,17 +825,17 @@ export class FCMService {
    */
   getDebugInfo(): FCMDebugInfo {
     const errorCount = this.eventListeners.filter(l => l.type === 'error_occurred').length;
-    
+
     return {
       tokenLength: this.tokenState.token?.length || 0,
       hasToken: !!this.tokenState.token,
       permissionStatus: messaging.AuthorizationStatus[this.permissionState.status],
       messageCount: this.messageState.messageHistory.length,
-      lastMessageTime: this.messageState.lastMessage ? 
+      lastMessageTime: this.messageState.lastMessage ?
         new Date(this.messageState.lastMessage.sentTime || Date.now()).toLocaleString() : null,
       isServiceInitialized: this.isInitialized,
       errorCount,
-      lastError: this.tokenState.error
+      lastError: this.tokenState.error,
     };
   }
 
@@ -694,7 +847,7 @@ export class FCMService {
       token: this.tokenState,
       permission: this.permissionState,
       message: this.messageState,
-      isInitialized: this.isInitialized
+      isInitialized: this.isInitialized,
     };
   }
 
@@ -703,14 +856,14 @@ export class FCMService {
    */
   destroy(): void {
     this.log('🧹 FCM Service 정리');
-    
+
     // 모든 리스너 해제
     this.unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
     this.unsubscribeFunctions = [];
-    
+
     // 이벤트 리스너 정리
     this.eventListeners = [];
-    
+
     // 상태 초기화
     this.isInitialized = false;
     this.initPromise = null;
@@ -757,7 +910,7 @@ export const createMessageHandlerMap = (navigation?: any) => {
     background: (message: FirebaseMessagingTypes.RemoteMessage) =>
       handler.handleBackgroundNotificationOpen(message),
     appLaunch: (message: FirebaseMessagingTypes.RemoteMessage) =>
-      handler.handleAppLaunchFromNotification(message)
+      handler.handleAppLaunchFromNotification(message),
   };
 };
 
@@ -789,7 +942,8 @@ export type {
   FCMEventType,
   FCMEventListener,
   FCMMessageHandlerFunction,
-  FCMInitOptions
+  IFCMMessageHandler,
+  FCMInitOptions,
 } from '../types/fcm';
 
 export default FCMService;

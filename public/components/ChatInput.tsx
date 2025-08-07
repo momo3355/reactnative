@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
 import { View, TextInput, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { SelectedImage } from '../store/zustandboard/types';
@@ -20,27 +21,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onImagePicker,
   selectedImages,
   isConnected,
-  isUploading
+  isUploading,
 }) => {
   const canSend = (inputMessage.trim() || selectedImages.length > 0) && !isUploading && isConnected;
-  
+
   return (
     <View style={styles.footer}>
       <View style={styles.inputContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.imageButton}
           onPress={onImagePicker}
         >
           <Text style={styles.imageButtonText}>📷</Text>
         </TouchableOpacity>
-        
-        <TextInput              
+
+        <TextInput
           value={inputMessage}
           onChangeText={onChangeText}
           placeholder={
-            selectedImages.length > 0 
-              ? `${selectedImages.length}장의 이미지를 전송합니다` 
-              : "메시지를 입력하세요..."
+            selectedImages.length > 0
+              ? `${selectedImages.length}장의 이미지를 전송합니다`
+              : '메시지를 입력하세요...'
           }
           placeholderTextColor="#999"
           multiline
@@ -51,11 +52,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           style={styles.textInput}
           editable={selectedImages.length === 0}
         />
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[
             styles.sendButton,
-            { backgroundColor: canSend ? '#FEE500' : '#E0E0E0' }
+            { backgroundColor: canSend ? '#FEE500' : '#E0E0E0' },
           ]}
           onPress={onSend}
           disabled={!canSend}
@@ -65,7 +66,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           ) : (
             <Text style={[
               styles.sendButtonText,
-              { color: canSend ? '#000' : '#999' }
+              { color: canSend ? '#000' : '#999' },
             ]}>
               전송
             </Text>

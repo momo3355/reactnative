@@ -22,9 +22,9 @@ export const ProfileImage: React.FC<{
   return (
     <View style={[styles.profileImageContainer, { width: size, height: size }]}>
       <Image
-        source={{ 
+        source={{
           uri: profileImageUrl,
-          cache: 'force-cache'
+          cache: 'force-cache',
         }}
         style={imageStyle}
         resizeMode="cover"

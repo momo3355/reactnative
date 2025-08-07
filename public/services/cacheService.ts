@@ -7,7 +7,7 @@ import {
   CacheConfig,
   PreloadOptions,
   ImageCacheService,
-  ImagePreloadData
+  ImagePreloadData,
 } from '../types/imageCache';
 
 /**
@@ -16,18 +16,18 @@ import {
  */
 export class ThumbnailCacheService implements ImageCacheService {
   private static instance: ThumbnailCacheService;
-  
+
   // 캐시 스토리지
   private cache = new Map<string, CacheItem>();
   private failedUrls = new Set<string>();
   private loadingPromises = new Map<string, Promise<ImageDimensions>>();
   private preloadQueue: ImagePreloadData[] = [];
-  
+
   // 상태 관리
   private socketConnected = true;
   private isPreloadingPaused = false;
   private isProcessingQueue = false;
-  
+
   // 설정
   private config: CacheConfig = {
     maxRetries: 1,
@@ -39,7 +39,7 @@ export class ThumbnailCacheService implements ImageCacheService {
     minHeight: 80,
     fixedWidth: 200,
     batchSize: 3,
-    batchDelay: 100
+    batchDelay: 100,
   };
 
   private constructor() {
@@ -60,14 +60,14 @@ export class ThumbnailCacheService implements ImageCacheService {
    * 소켓 연결 상태 설정
    */
   setSocketConnected(connected: boolean): void {
-    if (this.socketConnected === connected) return;
-    
+    if (this.socketConnected === connected) {return;}
+
     this.socketConnected = connected;
-    
+
     if (!connected) {
       this.isPreloadingPaused = true;
       this.loadingPromises.clear();
-      
+
       // 로딩 중인 항목들을 idle 상태로 되돌림
       for (const [url, item] of this.cache.entries()) {
         if (item.status === 'loading') {
@@ -125,13 +125,13 @@ export class ThumbnailCacheService implements ImageCacheService {
   private async performLoad(url: string): Promise<ImageDimensions> {
     const cacheItem = this.cache.get(url);
     const currentRetry = cacheItem?.retryCount || 0;
-    
+
     this.updateCache(url, this.getDefaultSize(), 'loading', currentRetry);
 
     try {
       const result = await Promise.race([
         this.fastGetSize(url),
-        this.createTimeout(this.config.loadTimeout)
+        this.createTimeout(this.config.loadTimeout),
       ]);
 
       this.updateCache(url, result, 'loaded', 0);
@@ -141,7 +141,7 @@ export class ThumbnailCacheService implements ImageCacheService {
       if (currentRetry < this.config.maxRetries) {
         const newRetryCount = currentRetry + 1;
         this.updateCache(url, this.getDefaultSize(), 'idle', newRetryCount);
-        
+
         await this.delay(this.config.retryDelay);
         return this.performLoad(url);
       } else {
@@ -158,7 +158,7 @@ export class ThumbnailCacheService implements ImageCacheService {
    */
   private async fastGetSize(url: string): Promise<ImageDimensions> {
     return new Promise<ImageDimensions>((resolve, reject) => {
-      const timeoutId = setTimeout(() => 
+      const timeoutId = setTimeout(() =>
         reject(new Error('GetSize timeout')), this.config.getSizeTimeout);
 
       Image.getSize(
@@ -172,7 +172,7 @@ export class ThumbnailCacheService implements ImageCacheService {
             reject(new Error('Invalid dimensions'));
           }
         },
-        (error) => {
+        (_error) => {
           clearTimeout(timeoutId);
           // 네트워크 오류 시 Prefetch 후 재시도
           this.fallbackWithPrefetch(url)
@@ -189,9 +189,9 @@ export class ThumbnailCacheService implements ImageCacheService {
   private async fallbackWithPrefetch(url: string): Promise<ImageDimensions> {
     // Prefetch 먼저 실행
     await new Promise<void>((resolve, reject) => {
-      const timeoutId = setTimeout(() => 
+      const timeoutId = setTimeout(() =>
         reject(new Error('Prefetch timeout')), this.config.prefetchTimeout);
-      
+
       Image.prefetch(url)
         .then(() => {
           clearTimeout(timeoutId);
@@ -205,7 +205,7 @@ export class ThumbnailCacheService implements ImageCacheService {
 
     // GetSize 재시도
     return new Promise<ImageDimensions>((resolve, reject) => {
-      const timeoutId = setTimeout(() => 
+      const timeoutId = setTimeout(() =>
         reject(new Error('Fallback GetSize timeout')), this.config.getSizeTimeout);
 
       Image.getSize(
@@ -233,14 +233,14 @@ export class ThumbnailCacheService implements ImageCacheService {
   private calculateOptimizedDimensions(width: number, height: number): ImageDimensions {
     const aspectRatio = height / width;
     const calculatedHeight = this.config.fixedWidth * aspectRatio;
-    
+
     let finalHeight = calculatedHeight;
     if (calculatedHeight > this.config.maxHeight) {
       finalHeight = this.config.maxHeight;
     } else if (calculatedHeight < this.config.minHeight) {
       finalHeight = this.config.minHeight;
     }
-    
+
     return { width: this.config.fixedWidth, height: finalHeight };
   }
 
@@ -248,7 +248,7 @@ export class ThumbnailCacheService implements ImageCacheService {
    * 배치 프리로딩
    */
   async preloadImages(urls: string[], options?: PreloadOptions): Promise<void> {
-    if (urls.length === 0) return;
+    if (urls.length === 0) {return;}
 
     const validUrls = urls
       .filter(url => this.isValidUrl(url))
@@ -256,12 +256,12 @@ export class ThumbnailCacheService implements ImageCacheService {
       .filter(url => !this.failedUrls.has(url))
       .slice(0, options?.maxImages || 10);
 
-    if (validUrls.length === 0) return;
+    if (validUrls.length === 0) {return;}
 
     console.log(`🚀 썸네일 프리로딩 시작: ${validUrls.length}개`);
 
     // 우선순위별로 정렬
-    const priority = options?.priority === 'high' ? 1 : 
+    const priority = options?.priority === 'high' ? 1 :
                     options?.priority === 'low' ? 3 : 2;
 
     // 프리로드 큐에 추가
@@ -269,7 +269,7 @@ export class ThumbnailCacheService implements ImageCacheService {
       url,
       priority,
       retryCount: 0,
-      lastAttempt: 0
+      lastAttempt: 0,
     }));
 
     this.preloadQueue.push(...preloadData);
@@ -293,7 +293,7 @@ export class ThumbnailCacheService implements ImageCacheService {
       const batchSize = this.config.batchSize;
       while (this.preloadQueue.length > 0) {
         const batch = this.preloadQueue.splice(0, batchSize);
-        
+
         await Promise.allSettled(
           batch.map(async (item) => {
             try {
@@ -303,7 +303,7 @@ export class ThumbnailCacheService implements ImageCacheService {
             }
           })
         );
-        
+
         // 배치 간 대기
         if (this.preloadQueue.length > 0) {
           await this.delay(this.config.batchDelay);
@@ -334,8 +334,8 @@ export class ThumbnailCacheService implements ImageCacheService {
    * URL 유효성 검사
    */
   isValidUrl(url: string): boolean {
-    if (!url || typeof url !== 'string') return false;
-    
+    if (!url || typeof url !== 'string') {return false;}
+
     try {
       const urlObj = new URL(url);
       return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
@@ -361,8 +361,7 @@ export class ThumbnailCacheService implements ImageCacheService {
    */
   getStats(): CacheStats {
     const loading = Array.from(this.cache.values()).filter(item => item.status === 'loading').length;
-    const loaded = Array.from(this.cache.values()).filter(item => item.status === 'loaded').length;
-    
+
     return {
       cached: this.cache.size,
       loading,
@@ -370,7 +369,7 @@ export class ThumbnailCacheService implements ImageCacheService {
       promises: this.loadingPromises.size,
       socketConnected: this.socketConnected,
       avgLoadTime: this.calculateAverageLoadTime(),
-      cacheHitRate: this.calculateCacheHitRate()
+      cacheHitRate: this.calculateCacheHitRate(),
     };
   }
 
@@ -378,16 +377,16 @@ export class ThumbnailCacheService implements ImageCacheService {
    * 캐시 업데이트
    */
   private updateCache(
-    url: string, 
-    dimensions: ImageDimensions, 
-    status: ImageLoadStatus, 
+    url: string,
+    dimensions: ImageDimensions,
+    status: ImageLoadStatus,
     retryCount: number = 0
   ): void {
     this.cache.set(url, {
       dimensions,
       status,
       timestamp: Date.now(),
-      retryCount
+      retryCount,
     });
   }
 
@@ -410,8 +409,8 @@ export class ThumbnailCacheService implements ImageCacheService {
    */
   private calculateAverageLoadTime(): string {
     const totalItems = this.cache.size + this.failedUrls.size;
-    if (totalItems === 0) return '0ms';
-    
+    if (totalItems === 0) {return '0ms';}
+
     const estimatedTime = this.cache.size * 500 + this.failedUrls.size * 2000;
     return `${Math.round(estimatedTime / totalItems)}ms`;
   }
@@ -421,8 +420,8 @@ export class ThumbnailCacheService implements ImageCacheService {
    */
   private calculateCacheHitRate(): string {
     const total = this.cache.size + this.failedUrls.size;
-    if (total === 0) return '0%';
-    
+    if (total === 0) {return '0%';}
+
     const hitRate = (this.cache.size / total) * 100;
     return `${Math.round(hitRate)}%`;
   }
@@ -483,7 +482,7 @@ export type {
   PreloadOptions,
   ImageCacheService,
   ThumbnailImageProps,
-  UseImageCacheReturn
+  UseImageCacheReturn,
 } from '../types/imageCache';
 
 export default ThumbnailCacheService;

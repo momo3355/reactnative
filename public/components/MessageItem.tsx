@@ -8,11 +8,11 @@ import { getMessageImageUrl, getOriginalImageUrl, formatTime } from '../utils/ch
 // 🚀 리팩토링된 컴포넌트들 import
 import { ThumbnailImage } from './ThumbnailImage';
 import { ProfileImage } from './ProfileImage';
-import { 
+import {
   ReadStatus,
   DateSeparator as DateSeparatorComponent,
   TextMessage,
-  EnterMessage
+  EnterMessage,
 } from './MessageComponents';
 
 interface MessageItemProps {
@@ -28,32 +28,32 @@ interface MessageItemProps {
  * 🚀 간소화된 메시지 아이템 컴포넌트
  * 리팩토링된 구조를 사용하여 더욱 간단해짐
  */
-export const MessageItem: React.FC<MessageItemProps> = React.memo(({ 
-  item, 
-  userId, 
+export const MessageItem: React.FC<MessageItemProps> = React.memo(({
+  item,
+  userId,
   onImagePress,
   onImageLoad,
 }) => {
   const cacheService = getThumbnailCache();
 
   // 🔥 메시지 데이터 메모이제이션
-  const message = useMemo(() => 
-    item.type !== 'DATE_SEPARATOR' ? item as MessgeInfoValue : null, 
+  const message = useMemo(() =>
+    item.type !== 'DATE_SEPARATOR' ? item as MessgeInfoValue : null,
     [item]
   );
-  
-  const isMyMessage = useMemo(() => 
-    message ? message.sender === userId : false, 
+
+  const isMyMessage = useMemo(() =>
+    message ? message.sender === userId : false,
     [message, userId]
   );
-  
-  const isImageMessage = useMemo(() => 
-    message ? message.type === 'IMAGE' : false, 
+
+  const isImageMessage = useMemo(() =>
+    message ? message.type === 'IMAGE' : false,
     [message]
   );
-  
-  const isEnterMessage = useMemo(() => 
-    message ? message.type === 'ENTER' : false, 
+
+  const isEnterMessage = useMemo(() =>
+    message ? message.type === 'ENTER' : false,
     [message]
   );
 
@@ -75,7 +75,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
     if (message && message.imageInfo) {
       const originalImageUrl = getOriginalImageUrl(message.imageInfo);
       onImagePress(originalImageUrl);
-      
+
       // 원본 이미지 프리로드
       cacheService.preloadImages([originalImageUrl], { priority: 'high' });
     }
@@ -98,9 +98,9 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
 
   if (isEnterMessage) {
     return (
-      <EnterMessage 
-        message={message.message} 
-        time={formattedTime} 
+      <EnterMessage
+        message={message.message}
+        time={formattedTime}
       />
     );
   }
@@ -109,11 +109,11 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
   if (isMyMessage) {
     return (
       <View style={styles.myMessageContainer}>
-        <View style={styles.myMessageContent}>          
+        <View style={styles.myMessageContent}>
           <View style={styles.messageRow}>
             <ReadStatus isRead={message.isRead} isMyMessage={true} />
             <Text style={styles.messageTime}>{formattedTime}</Text>
-            
+
             {isImageMessage ? (
               <View style={styles.myImageBubbleContainer}>
                 <ThumbnailImage
@@ -136,10 +136,10 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
   return (
     <View style={styles.receivedMessageContainer}>
       <ProfileImage sender={message.sender} />
-      
+
       <View style={styles.receivedMessageContent}>
         <Text style={styles.receivedSenderName}>{senderName}</Text>
-        
+
         <View style={styles.messageRow}>
           {isImageMessage ? (
             <View style={styles.receivedImageBubbleContainer}>
@@ -163,11 +163,11 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
   if (prevProps.item.type === 'DATE_SEPARATOR' && nextProps.item.type === 'DATE_SEPARATOR') {
     return (prevProps.item as DateSeparator).date === (nextProps.item as DateSeparator).date;
   }
-  
+
   if (prevProps.item.type !== 'DATE_SEPARATOR' && nextProps.item.type !== 'DATE_SEPARATOR') {
     const prevMessage = prevProps.item as MessgeInfoValue;
     const nextMessage = nextProps.item as MessgeInfoValue;
-    
+
     return (
       prevMessage.id === nextMessage.id &&
       prevMessage.isRead === nextMessage.isRead &&
@@ -176,7 +176,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
       prevProps.currentIndex === nextProps.currentIndex
     );
   }
-  
+
   return false;
 });
 
@@ -190,7 +190,7 @@ export const clearImageCache = () => {
 
 export const preloadVisibleImages = async (messages: MessgeInfoValue[]) => {
   const cache = getThumbnailCache();
-  
+
   const imageUrls = messages
     .filter(msg => msg.type === 'IMAGE' && msg.imageInfo)
     .map(msg => getMessageImageUrl(msg.imageInfo!))

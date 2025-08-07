@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useState, useCallback } from 'react';
 import {
   Modal,
@@ -79,11 +80,11 @@ export const ImageViewModal: React.FC<ImageViewModalProps> = ({
   const generateFileName = (url: string): string => {
     const timestamp = new Date().getTime();
     const extension = url.split('.').pop()?.toLowerCase() || 'jpg';
-    
+
     // 이미지 확장자 검증
     const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     const finalExtension = validExtensions.includes(extension) ? extension : 'jpg';
-    
+
     return `ChatImage_${timestamp}.${finalExtension}`;
   };
 
@@ -103,9 +104,9 @@ export const ImageViewModal: React.FC<ImageViewModalProps> = ({
         Alert.alert('권한 필요', '이미지를 저장하려면 저장소 권한이 필요합니다.');
         return;
       }
-      
+
       const fileName = generateFileName(imageUrl);
-      
+
       // 저장 경로 설정
       const downloadDest = Platform.select({
         ios: `${RNFS.DocumentDirectoryPath}/${fileName}`,
@@ -119,7 +120,7 @@ export const ImageViewModal: React.FC<ImageViewModalProps> = ({
       console.log('📥 이미지 다운로드 시작:', {
         url: imageUrl,
         destination: downloadDest,
-        fileName
+        fileName,
       });
 
       // 다운로드 실행
@@ -144,13 +145,13 @@ export const ImageViewModal: React.FC<ImageViewModalProps> = ({
         }
 
         Alert.alert(
-          '다운로드 완료', 
+          '다운로드 완료',
           `이미지가 저장되었습니다.\n${fileName}`,
           [
             {
               text: '확인',
-              style: 'default'
-            }
+              style: 'default',
+            },
           ]
         );
 
@@ -161,15 +162,15 @@ export const ImageViewModal: React.FC<ImageViewModalProps> = ({
 
     } catch (error) {
       console.error('❌ 이미지 다운로드 오류:', error);
-      
+
       Alert.alert(
-        '다운로드 실패', 
+        '다운로드 실패',
         '이미지를 저장하는 중 오류가 발생했습니다.\n다시 시도해주세요.',
         [
           {
             text: '확인',
-            style: 'default'
-          }
+            style: 'default',
+          },
         ]
       );
     } finally {
@@ -186,13 +187,13 @@ export const ImageViewModal: React.FC<ImageViewModalProps> = ({
       [
         {
           text: '취소',
-          style: 'cancel'
+          style: 'cancel',
         },
         {
           text: '저장',
           style: 'default',
-          onPress: downloadImage
-        }
+          onPress: downloadImage,
+        },
       ]
     );
   }, [downloadImage]);
@@ -206,15 +207,15 @@ export const ImageViewModal: React.FC<ImageViewModalProps> = ({
     >
       <View style={styles.modalContainer}>
         <StatusBar backgroundColor="rgba(0,0,0,0.9)" barStyle="light-content" />
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.modalBackground}
           activeOpacity={1}
           onPress={onClose}
         >
           <View style={styles.modalContent}>
             {/* 🚀 닫기 버튼 (상단 오른쪽) */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeButton}
               onPress={onClose}
             >
@@ -222,7 +223,7 @@ export const ImageViewModal: React.FC<ImageViewModalProps> = ({
             </TouchableOpacity>
 
             {/* 🚀 다운로드 버튼 (하단 오른쪽) */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.modalActionButton, {
                 position: 'absolute',
                 bottom: 80,

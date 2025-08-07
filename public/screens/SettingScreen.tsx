@@ -11,7 +11,7 @@ interface SettingItem {
 }
 
 const SettingsScreen: React.FC = () => {
-  console.log("=----------------setting-------------------=");
+  console.log('=----------------setting-------------------=');
   // 설정 상태 관리
   const [settings, setSettings] = useState<SettingItem[]>([
     {

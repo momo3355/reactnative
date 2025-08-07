@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { styles } from '../styles/ChatRoom.styles';
@@ -8,10 +9,10 @@ interface ChatHeaderProps {
   onBack: () => void;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
-  title, 
-  isConnected, 
-  onBack 
+export const ChatHeader: React.FC<ChatHeaderProps> = ({
+  title,
+  isConnected,
+  onBack,
 }) => (
   <View style={styles.header}>
     <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -22,7 +23,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       <View style={styles.connectionStatusContainer}>
         <View style={[
           styles.connectionStatus,
-          { backgroundColor: isConnected ? '#4CAF50' : '#F44336' }
+          { backgroundColor: isConnected ? '#4CAF50' : '#F44336' },
         ]} />
       </View>
     </View>

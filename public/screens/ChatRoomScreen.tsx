@@ -268,6 +268,7 @@ const ChatRoomScreen: React.FC<ChatRoomProps> = ({
             <ActivityIndicator size="large" color="#FEE500" />
           </View>
         ) : (
+          <View>
           <FlatList
             ref={flatListRef}
             data={chatItems}
@@ -296,6 +297,7 @@ const ChatRoomScreen: React.FC<ChatRoomProps> = ({
             onScroll={handleScroll}
             ListFooterComponent={ListFooterComponent}
           />
+          </View>
         )}
       </View>
 

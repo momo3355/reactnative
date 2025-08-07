@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -75,7 +76,7 @@ const BoardScreen: React.FC<BoardScreenProps> = ({
     console.log('=== RefreshTrigger useEffect ===');
     console.log('refreshTrigger:', refreshTrigger);
     console.log('lastRefreshTrigger.current:', lastRefreshTrigger.current);
-    
+
     // refreshTrigger가 실제로 변경되었고 0이 아닐 때만 새로고침
     if (refreshTrigger > 0 && refreshTrigger !== lastRefreshTrigger.current) {
       console.log('Executing onRefresh due to refreshTrigger change...');

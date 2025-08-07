@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, TouchableOpacity, Image, ActivityIndicator, Text } from 'react-native';
 import { useImageCache } from '../hooks/useImageCache';
@@ -8,15 +9,15 @@ import { styles } from '../styles/ChatRoom.styles';
  * 최적화된 썸네일 이미지 컴포넌트
  * 새로운 이미지 캐시 서비스 사용
  */
-export const ThumbnailImage: React.FC<ThumbnailImageProps> = React.memo(({ 
-  imageUrl, 
-  isMyMessage, 
-  onPress, 
+export const ThumbnailImage: React.FC<ThumbnailImageProps> = React.memo(({
+  imageUrl,
+  isMyMessage,
+  onPress,
   onLoad,
-  dimensions: propDimensions
+  dimensions: propDimensions,
 }) => {
-  const { loadImage, getCachedSize, getLoadStatus } = useImageCache();
-  
+  const { loadImage, getCachedSize} = useImageCache();
+
   const [imageDimensions, setImageDimensions] = useState<ImageDimensions>(
     propDimensions || { width: 200, height: 150 }
   );
@@ -53,7 +54,7 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = React.memo(({
 
     loadImage(imageUrl)
       .then((dimensions) => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current) {return;}
 
         setImageDimensions(dimensions);
         setLoadState('loaded');
@@ -61,7 +62,7 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = React.memo(({
         onLoad?.();
       })
       .catch((error) => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current) {return;}
 
         const loadTime = Date.now() - loadStartTimeRef.current;
         console.error(`🚫 썸네일 로딩 실패: ${loadTime}ms`, error);
@@ -73,21 +74,21 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = React.memo(({
 
   // 빠른 재시도 핸들러
   const handleQuickRetry = useCallback(() => {
-    if (retryCount >= 3) return; // 최대 3회 재시도
-    
+    if (retryCount >= 3) {return;}
+
     setLoadState('loading');
     setRetryCount(prev => prev + 1);
-    
+
     setTimeout(() => {
       loadImage(imageUrl)
         .then((dimensions) => {
-          if (!mountedRef.current) return;
+          if (!mountedRef.current) {return;}
           setImageDimensions(dimensions);
           setLoadState('loaded');
           onLoad?.();
         })
         .catch(() => {
-          if (!mountedRef.current) return;
+          if (!mountedRef.current) {return;}
           setLoadState('error');
         });
     }, 500); // 0.5초 후 재시도
@@ -100,20 +101,20 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = React.memo(({
   if (loadState === 'error') {
     return (
       <View style={[
-        containerStyle, 
-        { 
-          width: imageDimensions.width, 
-          height: 100, 
-          justifyContent: 'center', 
-          alignItems: 'center', 
+        containerStyle,
+        {
+          width: imageDimensions.width,
+          height: 100,
+          justifyContent: 'center',
+          alignItems: 'center',
           backgroundColor: '#f8f8f8',
           borderWidth: 1,
           borderColor: '#e0e0e0',
-          borderRadius: 8
-        }
+          borderRadius: 8,
+        },
       ]}>
-        <TouchableOpacity 
-          onPress={handleQuickRetry} 
+        <TouchableOpacity
+          onPress={handleQuickRetry}
           style={{ alignItems: 'center' }}
           disabled={retryCount >= 3}
         >
@@ -135,14 +136,14 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = React.memo(({
   if (loadState === 'loading') {
     return (
       <View style={[
-        containerStyle, 
-        { 
-          width: imageDimensions.width, 
+        containerStyle,
+        {
+          width: imageDimensions.width,
           height: imageDimensions.height,
-          justifyContent: 'center', 
+          justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: '#fafafa'
-        }
+          backgroundColor: '#fafafa',
+        },
       ]}>
         <ActivityIndicator size="small" color="#FEE500" />
         <Text style={{ color: '#999', fontSize: 9, marginTop: 4 }}>
@@ -156,17 +157,17 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = React.memo(({
   return (
     <View style={[containerStyle, { width: imageDimensions.width }]}>
       <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-        <Image 
-          source={{ 
+        <Image
+          source={{
             uri: imageUrl,
-            cache: 'force-cache'
+            cache: 'force-cache',
           }}
           style={[
-            imageStyle, 
-            { 
-              width: imageDimensions.width, 
-              height: imageDimensions.height
-            }
+            imageStyle,
+            {
+              width: imageDimensions.width,
+              height: imageDimensions.height,
+            },
           ]}
           resizeMode="cover"
           fadeDuration={150}
@@ -182,13 +183,13 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = React.memo(({
               setLoadState('error');
             }
           }}
-        />        
+        />
       </TouchableOpacity>
     </View>
   );
 }, (prevProps, nextProps) => {
   return (
-    prevProps.imageUrl === nextProps.imageUrl && 
+    prevProps.imageUrl === nextProps.imageUrl &&
     prevProps.isMyMessage === nextProps.isMyMessage &&
     JSON.stringify(prevProps.dimensions) === JSON.stringify(nextProps.dimensions)
   );

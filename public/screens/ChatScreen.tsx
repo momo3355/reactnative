@@ -1,14 +1,21 @@
+/* eslint-disable react/no-unstable-nested-components */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image } from 'react-native';
 import { chatPostStore } from '../store/zustandboard/chatPostStore'; // Zustand store import
 import { ChatRoomPostsValue } from '../store/zustandboard/types'; // 타입 정의 import
+import { useAuthStore } from '../store/zustandboard/authStore'; // 인증 스토어 import
 
 // Props 타입 정의 - 네비게이션 콜백 함수 포함
 interface BoardScreenProps {
-  onChatNavigateToPost?: (roomId: string) => void; 
+  onChatNavigateToPost?: (roomId: string) => void;
 }
 
 const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
+
+  // 🔐 로그인한 사용자 정보 가져오기
+  const { user } = useAuthStore();
+  const currentUserId = user?.userId || 'guest';
 
   const {
     posts,           // 게시물 리스트
@@ -17,8 +24,9 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
   /**
    * 초기 데이터 로드 함수
    */
-  const loadInitialData = async () => {   
-      await chatLoadPosts({userId: "test"});
+  const loadInitialData = async () => {
+      console.log('📁 채팅방 리스트 로드:', currentUserId);
+      await chatLoadPosts({userId: currentUserId});
   };
 
   /**
@@ -26,30 +34,39 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
    */
   useEffect(() => {
     console.log('=== Initial chat data load useEffect ===');
-    loadInitialData();
-  }, []); 
+    if (currentUserId && currentUserId !== 'guest') {
+      loadInitialData();
+    }
+  }, [currentUserId]); // currentUserId가 변경될 때마다 리로드
 
   const handlePostPress = (post: ChatRoomPostsValue) => {
-    try{        
+    console.log('🎯 [STEP 1] 채팅방 클릭됨:', {
+      roomId: post.roomId,
+      roomName: post.roomName,
+      lastMessage: post.lastMessage
+    });
+    
+    try{
         if (typeof onChatNavigateToPost === 'function') { // 함수인지 명시적으로 확인
+          console.log('🎯 [STEP 2] onChatNavigateToPost 콜백 호출:', post.roomId);
           onChatNavigateToPost(post.roomId);
+          console.log('🎯 [STEP 3] 콜백 호출 완료');
         } else {
-          console.warn("onChatNavigateToPost 함수가 정의되지 않았습니다.");
-          // 또는 적절한 에러 처리
+          console.warn('⚠️ onChatNavigateToPost 함수가 정의되지 않았습니다.');
         }
     }catch(e){
-      console.log("챗룸 에러 errr");
+      console.error('❌ 채팅방 이동 중 에러:', e);
     }
   };
 
   // 시간 포맷팅 함수
   const formatTime = (timeString?: string) => {
-    if (!timeString) return '';
-    
+    if (!timeString) {return '';}
+
     const now = new Date();
     const messageTime = new Date(timeString);
     const diffInHours = (now.getTime() - messageTime.getTime()) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 1) {
       const minutes = Math.floor(diffInHours * 60);
       return minutes <= 0 ? '방금' : `${minutes}분 전`;
@@ -58,7 +75,7 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
     } else {
       return messageTime.toLocaleDateString('ko-KR', {
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
       });
     }
   };
@@ -70,8 +87,8 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
   };
 
   const renderItem = ({ item }: { item: ChatRoomPostsValue }) => (
-    <TouchableOpacity 
-      style={styles.itemContainer} 
+    <TouchableOpacity
+      style={styles.itemContainer}
       onPress={() => handlePostPress(item)}
       activeOpacity={0.7}
     >
@@ -101,7 +118,7 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
               <Text style={styles.memberCount}>{item.memberCount}</Text>
             )}
           </View>
-          
+
           <Text style={styles.lastMessage} numberOfLines={2}>
             {item.lastMessage || '새로운 채팅방입니다.'}
           </Text>
@@ -132,9 +149,9 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
         keyExtractor={(item, index) => `post-${item.id || index}`}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-      /> 
+      />
     </View>
-  );   
+  );
 };
 
 // 스타일 정의

@@ -56,20 +56,20 @@ export interface UseFCMReturn {
   tokenError: string | null;
   isTokenLoading: boolean;
   refreshToken: () => Promise<void>;
-  
+
   // 권한 관련
   permission: FCMPermissionState;
   requestPermission: () => Promise<boolean>;
-  
+
   // 메시지 관련
   lastMessage: FirebaseMessagingTypes.RemoteMessage | null;
   messageHistory: FirebaseMessagingTypes.RemoteMessage[];
   clearMessageHistory: () => void;
-  
+
   // 상태 관련
   isInitialized: boolean;
   error: string | null;
-  
+
   // 유틸리티
   getDebugInfo: () => FCMDebugInfo;
 }
@@ -87,7 +87,7 @@ export interface FCMDebugInfo {
 }
 
 // FCM 이벤트 타입
-export type FCMEventType = 
+export type FCMEventType =
   | 'token_received'
   | 'token_refreshed'
   | 'message_received'
@@ -113,6 +113,14 @@ export interface FCMInitOptions {
   enableBackgroundHandler?: boolean;
   enableForegroundHandler?: boolean;
   enableNotificationOpenHandler?: boolean;
-  customMessageHandler?: FCMMessageHandlerFunction;
+  customMessageHandler?: FCMMessageHandlerFunction | IFCMMessageHandler;
   config?: FCMServiceConfig;
+}
+
+// FCM 메시지 핸들러 인터페이스
+export interface IFCMMessageHandler {
+  handleForegroundMessage?: (message: FirebaseMessagingTypes.RemoteMessage) => Promise<FCMNotificationResult>;
+  handleBackgroundNotificationOpen?: (message: FirebaseMessagingTypes.RemoteMessage) => Promise<FCMNotificationResult>;
+  handleAppLaunchFromNotification?: (message: FirebaseMessagingTypes.RemoteMessage) => Promise<FCMNotificationResult>;
+  setNavigation?: (navigation: any) => void;
 }

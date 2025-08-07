@@ -155,59 +155,79 @@ export const useFCM = (
     let mounted = true;
 
     const setupEventListeners = () => {
-      // 토큰 수신 이벤트
+      // 🔥 토큰 수신 이벤트 (중복 방지)
+      let tokenLoggedOnce = false;
       addEventListener('token_received', (data) => {
         if (mounted) {
-          console.log('🎫 [useFCM] 토큰 수신:', data?.token?.substring(0, 20) + '...');
+          if (__DEV__ && !tokenLoggedOnce) {
+            console.log('🎫 [useFCM] 토큰 수신:', data?.token?.substring(0, 20) + '...');
+            tokenLoggedOnce = true;
+          }
           updateStates();
         }
       });
 
       // 토큰 갱신 이벤트
       addEventListener('token_refreshed', (data) => {
-        if (mounted) {
+        if (mounted && __DEV__) {
           console.log('🔄 [useFCM] 토큰 갱신:', data?.token?.substring(0, 20) + '...');
+        }
+        if (mounted) {
           updateStates();
         }
       });
 
       // 메시지 수신 이벤트
       addEventListener('message_received', (data) => {
-        if (mounted) {
+        if (mounted && __DEV__) {
           console.log('📨 [useFCM] 메시지 수신:', data?.message?.notification?.title);
+        }
+        if (mounted) {
           updateStates();
         }
       });
 
-      // 권한 승인 이벤트
+      // 🔥 권한 승인 이벤트 (중복 방지)
+      let permissionLoggedOnce = false;
       addEventListener('permission_granted', () => {
         if (mounted) {
-          console.log('✅ [useFCM] 권한 승인됨');
+          if (__DEV__ && !permissionLoggedOnce) {
+            console.log('✅ [useFCM] 권한 승인됨');
+            permissionLoggedOnce = true;
+          }
           updateStates();
         }
       });
 
       // 권한 거부 이벤트
       addEventListener('permission_denied', () => {
-        if (mounted) {
+        if (mounted && __DEV__) {
           console.log('❌ [useFCM] 권한 거부됨');
+        }
+        if (mounted) {
           updateStates();
         }
       });
 
       // 오류 이벤트
       addEventListener('error_occurred', (data) => {
-        if (mounted) {
+        if (mounted && __DEV__) {
           console.error('🚨 [useFCM] 오류 발생:', data?.error);
+        }
+        if (mounted) {
           setError(data?.error?.message || '알 수 없는 오류');
           updateStates();
         }
       });
 
-      // 서비스 초기화 완료 이벤트
+      // 🔥 서비스 초기화 완료 이벤트 (중복 방지)
+      let serviceInitLoggedOnce = false;
       addEventListener('service_initialized', () => {
         if (mounted) {
-          console.log('🚀 [useFCM] 서비스 초기화 완료');
+          if (__DEV__ && !serviceInitLoggedOnce) {
+            console.log('🚀 [useFCM] 서비스 초기화 완료');
+            serviceInitLoggedOnce = true;
+          }
           updateStates();
         }
       });

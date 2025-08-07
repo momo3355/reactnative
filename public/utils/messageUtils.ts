@@ -22,9 +22,12 @@ export const createMessage = (
 });
 
 export const processMessagesForRead = (messages: MessgeInfoValue[], userId: string) => {
-  return messages.map(msg => {
-    if (msg.sender !== userId && msg.reUserId && typeof msg.reUserId === 'string' && msg.reUserId.trim() !== '') {
-      const userIds = msg.reUserId.split(',').map(id => id.trim()).filter(id => id !== '');
+  return messages.map((msg) => {
+    // 모든 메시지의 reUserId 체크 (sender 상관없이)
+    const reUserIdStr = msg.reUserId;
+
+    if (reUserIdStr && typeof reUserIdStr === 'string' && reUserIdStr.trim() !== '') {
+      const userIds = reUserIdStr.split(',').map(id => id.trim()).filter(id => id !== '');
       
       if (userIds.includes(userId)) {
         const currentReadCount = parseInt(msg.isRead) || 0;
@@ -39,6 +42,7 @@ export const processMessagesForRead = (messages: MessgeInfoValue[], userId: stri
         };
       }
     }
+    
     return msg;
   });
 };
