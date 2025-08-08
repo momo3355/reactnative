@@ -72,6 +72,7 @@ export interface ChatRoomPostsValue{
   profileImage?: string;
   isOnline?: boolean;
   memberCount?: number;
+  lastType?: string;
 }
 
 export interface ChatRoomPostResponse {
@@ -108,6 +109,9 @@ export interface ChatPostState {
     chatLoadPosts: (params:SearchChatRoomParams) => Promise<void>;
     chatFileUpload: (params: SearchChatRoomParams) => Promise<ChatFileUploadResponse>;
     loadMessgeInfoPosts: (params: SearchMessgeInfoParams) => Promise<MessgeInfoResponse>;
+    updateUnreadCount: (roomId: string, increment: number) => void;
+    updateLastMessage: (roomId: string, message: string, timestamp?: string) => void;
+    resetUnreadCount: (roomId: string) => void;
 }
 
 export interface MessgeInfoValue {
@@ -128,6 +132,7 @@ export interface MessgeInfoValue {
 // 검색 파라미터 타입 정의 (확장)
 export interface SearchMessgeInfoParams {
   id? : number;
+  sender? : string
   roomId? : string;  
 }
 

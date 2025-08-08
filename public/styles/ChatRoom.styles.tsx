@@ -449,10 +449,34 @@ export const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: Sizes.spacing.sm,
   },
+  
+  // 🔥 시간과 읽음 상태 세로 배치 스타일
+  timeReadColumn: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    minHeight: 20,
+    gap: 2,
+  },
+  
+  // 🔥 내 메시지 시간/읽음 상태 열 (오른쪽 정렬)
+  myTimeReadColumn: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+    minHeight: 20,
+    gap: 2,
+  },
+  
+  // 🔥 받은 메시지 시간/읽음 상태 열 (왼쪽 정렬)
+  receivedTimeReadColumn: {
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
+    minHeight: 20,
+    gap: 2,
+  },
+  
   messageTime: {
     fontSize: 10,
     color: Colors.secondaryText,
-    marginBottom: Sizes.spacing.xs,
   },
   
   // ===================

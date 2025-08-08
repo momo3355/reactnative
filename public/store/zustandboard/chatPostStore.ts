@@ -14,8 +14,36 @@ export const chatPostStore = create<ChatPostState>((set) => ({
 
       try{
           const data = await chatRoomList(params);          
-          set({posts:data.roomList });
+          
+          // 배열 데이터를 객체로 변환
+          const convertedPosts = data.roomList.map((roomItem: any) => {
+            const [
+              roomId,
+              roomName, 
+              unreadCount, 
+              lastMessage, 
+              lastType, 
+              lastCretDate
+            ] = roomItem;
+            
+            return {
+              id: roomId,
+              roomId: roomId,
+              roomName: roomName || '',
+              lastMessage: lastMessage || '새로운 채팅방입니다.',
+              lastMessageTime: lastCretDate,
+              unreadCount: unreadCount || 0,
+              profileImage: undefined,
+              isOnline: false,
+              memberCount: undefined,
+              lastType: lastType
+            };
+          });
+          
+          console.log('🔄 [chatPostStore] 변환된 데이터:', convertedPosts);
+          set({posts: convertedPosts });
       }catch(e){
+          console.error('❌ [chatPostStore] 오류:', e);
           set({ error: '채팅 목록을 불러오는 데 실패했습니다.' });
       } finally {
           set({ loading: false });
@@ -87,6 +115,55 @@ chatFileUpload: async (params: SearchChatRoomParams): Promise<ChatFileUploadResp
     set({ loading: false });
   }
 },
+
+  // FCM 메시지 수신 시 채팅방의 읽지 않은 메시지 카운터 업데이트
+  updateUnreadCount: (roomId: string, increment: number) => {
+    set((state) => ({
+      posts: state.posts.map(post => 
+        post.roomId === roomId 
+          ? { 
+              ...post, 
+              unreadCount: (post.unreadCount || 0) + increment 
+            }
+          : post
+      )
+    }));
+    
+    console.log('🔥 [chatPostStore] 카운터 업데이트:', { roomId, increment });
+  },
+
+  // FCM 메시지 수신 시 채팅방의 마지막 메시지 업데이트
+  updateLastMessage: (roomId: string, message: string, timestamp?: string) => {
+    set((state) => ({
+      posts: state.posts.map(post => 
+        post.roomId === roomId 
+          ? { 
+              ...post, 
+              lastMessage: message,
+              lastMessageTime: timestamp || new Date().toISOString()
+            }
+          : post
+      )
+    }));
+    
+    console.log('💬 [chatPostStore] 마지막 메시지 업데이트:', { roomId, message });
+  },
+
+  // 채팅방 진입 시 읽지 않은 메시지 카운터 리셋
+  resetUnreadCount: (roomId: string) => {
+    set((state) => ({
+      posts: state.posts.map(post => 
+        post.roomId === roomId 
+          ? { 
+              ...post, 
+              unreadCount: 0 
+            }
+          : post
+      )
+    }));
+    
+    console.log('🔄 [chatPostStore] 카운터 리셋:', { roomId });
+  },
  
 
 }));

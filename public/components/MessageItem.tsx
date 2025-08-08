@@ -67,7 +67,13 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
   }, [message]);
 
   const senderName = useMemo(() => {
-    return message ? (message.userName || message.sender) : '';
+    if (!message) return '';
+    return message.userName || message.sender || 'Unknown';
+  }, [message]);
+
+  const messageText = useMemo(() => {
+    if (!message) return '';
+    return message.message || '';
   }, [message]);
 
   // 🔥 이미지 클릭 핸들러
@@ -99,7 +105,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
   if (isEnterMessage) {
     return (
       <EnterMessage
-        message={message.message}
+        message={messageText}
         time={formattedTime}
       />
     );
@@ -111,8 +117,11 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
       <View style={styles.myMessageContainer}>
         <View style={styles.myMessageContent}>
           <View style={styles.messageRow}>
-            <ReadStatus isRead={message.isRead} isMyMessage={true} />
-            <Text style={styles.messageTime}>{formattedTime}</Text>
+            {/* 🔥 시간과 읽음 상태를 세로 배치 (오른쪽 정렬) */}
+            <View style={styles.myTimeReadColumn}>
+              <ReadStatus isRead={message.isRead} isMyMessage={true} />
+              <Text style={styles.messageTime}>{formattedTime}</Text>
+            </View>
 
             {isImageMessage ? (
               <View style={styles.myImageBubbleContainer}>
@@ -124,7 +133,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
                 />
               </View>
             ) : (
-              <TextMessage message={message.message} isMyMessage={true} />
+              <TextMessage message={messageText} isMyMessage={true} />
             )}
           </View>
         </View>
@@ -151,10 +160,14 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
               />
             </View>
           ) : (
-            <TextMessage message={message.message} isMyMessage={false} />
+            <TextMessage message={messageText} isMyMessage={false} />
           )}
-          <Text style={styles.messageTime}>{formattedTime}</Text>
-          <ReadStatus isRead={message.isRead} isMyMessage={false} />
+          
+          {/* 🔥 시간과 읽음 상태를 세로 배치 (왼쪽 정렬) */}
+          <View style={styles.receivedTimeReadColumn}>
+            <ReadStatus isRead={message.isRead} isMyMessage={false} />
+            <Text style={styles.messageTime}>{formattedTime}</Text>
+          </View>
         </View>
       </View>
     </View>

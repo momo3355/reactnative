@@ -81,7 +81,11 @@ export const useChatMessages = (roomId: string, userId: string) => {
       setOldestMessageId(0);
       setHasMoreMessages(true);
 
-      const params: SearchMessgeInfoParams = { roomId, id: 0 };
+      const params: SearchMessgeInfoParams = { 
+        roomId, 
+        id: 0, 
+        sender: userId // 🔥 로그인한 사용자 ID 추가
+      };
       const response = await loadMessgeInfoPosts(params);
 
       if (response.success && response.messageInfoList?.length > 0) {
@@ -138,7 +142,11 @@ export const useChatMessages = (roomId: string, userId: string) => {
     try {
       setIsLoadingPreviousMessages(true);
 
-      const params: SearchMessgeInfoParams = { roomId, id: oldestMessageId };
+      const params: SearchMessgeInfoParams = { 
+        roomId, 
+        id: oldestMessageId, 
+        sender: userId // 🔥 로그인한 사용자 ID 추가
+      };
       const response = await loadMessgeInfoPosts(params);
 
       if (response.success && response.messageInfoList?.length > 0) {
@@ -187,10 +195,46 @@ export const useChatMessages = (roomId: string, userId: string) => {
     }
   }, [isLoadingPreviousMessages, hasMoreMessages, roomId, oldestMessageId, userId, loadMessgeInfoPosts]);
 
-  // 새 메시지 추가
+  // 새 메시지 추가 또는 기존 메시지 업데이트
   const addMessage = useCallback((newMessage: MessgeInfoValue) => {
-    setMessages(prev => [newMessage, ...prev]);
-  }, []);
+    // 🔥 메시지 추가 시 isRead 값 디버깅
+    console.log('📦 [useChatMessages] addMessage 디버깅:', {
+      messageId: newMessage.id,
+      message: newMessage.message?.substring(0, 20) + '...',
+      isRead: newMessage.isRead,
+      sender: newMessage.sender,
+      type: newMessage.type
+    });
+    
+    setMessages(prev => {
+      // 🔥 자신이 보낸 메시지의 경우 기존 임시 메시지를 찾아서 업데이트
+      if (newMessage.sender === userId && newMessage.isRead && newMessage.isRead !== '0') {
+        const tempMessageIndex = prev.findIndex(msg => 
+          msg.sender === userId && 
+          msg.message === newMessage.message &&
+          msg.id.startsWith('temp_') &&
+          Math.abs(new Date(msg.cretDate).getTime() - new Date(newMessage.cretDate).getTime()) < 10000 // 10초 이내
+        );
+        
+        if (tempMessageIndex !== -1) {
+          console.log('🔄 [useChatMessages] 임시 메시지를 서버 메시지로 갱신:', {
+            tempId: prev[tempMessageIndex].id,
+            newId: newMessage.id,
+            newIsRead: newMessage.isRead
+          });
+          
+          // 기존 임시 메시지를 서버 메시지로 교체
+          const updatedMessages = [...prev];
+          updatedMessages[tempMessageIndex] = newMessage;
+          return updatedMessages;
+        }
+      }
+      
+      // 🔥 기존 메시지가 없으면 새로 추가
+      console.log('➕ [useChatMessages] 새 메시지 추가');
+      return [newMessage, ...prev];
+    });
+  }, [userId]); // 🔥 userId 의존성 추가
 
   // 메시지 읽음 상태 업데이트 - 모든 메시지의 reUserId 체크
   const markMessagesAsRead = useCallback((readerId: string) => {

@@ -158,17 +158,48 @@ const ChatRoomScreen: React.FC<ChatRoomProps> = ({
     // 텍스트 메시지가 있는 경우
     if (!inputMessage.trim() || !isConnected) {return;}
 
+    const messageText = inputMessage.trim();
+    
     try {
-      console.log('💬 텍스트 메시지 전송:', inputMessage.trim());
-      const success = await sendWebSocketMessage('TALK', inputMessage.trim());
+      console.log('💬 텍스트 메시지 전송:', messageText);
+      
+      // 🔥 Optimistic Update: 메시지 전송 즉시 UI에 추가
+      const optimisticMessage: MessgeInfoValue = {
+        id: `temp_${Date.now()}`, // 임시 ID (서버에서 온 메시지로 나중에 대체될 수 있음)
+        sender: userId,
+        userName: userName,
+        message: messageText,
+        roomId: roomId,
+        type: 'TALK',
+        cretDate: new Date().toLocaleString('sv-SE').replace('T', ' ').substring(0, 19),
+        isRead: '0',
+        reUserId: '',
+        userList: [],
+        imageInfo: undefined,
+      };
+      
+      // 즉시 UI에 메시지 추가
+      addMessage(optimisticMessage);
+      
+      // 입력창 초기화
+      setInputMessage('');
+      
+      // 서버로 메시지 전송
+      const success = await sendWebSocketMessage('TALK', messageText);
+      
       if (success) {
-        setInputMessage('');
         console.log('✅ 텍스트 메시지 전송 완료');
+      } else {
+        console.error('❌ 메시지 전송 실패 - UI에서 제거해야 할 수도 있음');
+        // 필요하다면 실패한 메시지를 UI에서 제거할 수 있음
+        // removeMessage(optimisticMessage.id);
       }
     } catch (error) {
       console.error('❌ 메시지 전송 실패:', error);
+      // 오류 시 입력창 복원
+      setInputMessage(messageText);
     }
-  }, [inputMessage, isConnected, sendWebSocketMessage, selectedImages, uploadAndSendImages]);
+  }, [inputMessage, isConnected, sendWebSocketMessage, selectedImages, uploadAndSendImages, userId, userName, roomId, addMessage]); // 🔥 의존성 추가
 
   // 🔥 스크롤 핸들러
   const handleScroll = useCallback((event: any) => {

@@ -1,7 +1,8 @@
-/* eslint-disable react/no-unstable-nested-components */
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image } from 'react-native';
+import React, { useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image, AppState, AppStateStatus } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import messaging from '@react-native-firebase/messaging';
 import { chatPostStore } from '../store/zustandboard/chatPostStore'; // Zustand store import
 import { ChatRoomPostsValue } from '../store/zustandboard/types'; // 타입 정의 import
 import { useAuthStore } from '../store/zustandboard/authStore'; // 인증 스토어 import
@@ -9,9 +10,10 @@ import { useAuthStore } from '../store/zustandboard/authStore'; // 인증 스토
 // Props 타입 정의 - 네비게이션 콜백 함수 포함
 interface BoardScreenProps {
   onChatNavigateToPost?: (roomId: string) => void;
+  onRefreshRequest?: boolean; // 🔥 새로고침 요청 플래그 추가
 }
 
-const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
+const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost, onRefreshRequest}) => {
 
   // 🔐 로그인한 사용자 정보 가져오기
   const { user } = useAuthStore();
@@ -19,40 +21,194 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
 
   const {
     posts,           // 게시물 리스트
-    chatLoadPosts} = chatPostStore();       // 게시물 초기화 함수
+    chatLoadPosts,   // 게시물 초기화 함수
+    updateUnreadCount, // 읽지 않은 메시지 카운터 업데이트 함수
+    updateLastMessage, // 마지막 메시지 업데이트 함수
+    resetUnreadCount} = chatPostStore();  // 카운터 리셋 함수
 
   /**
    * 초기 데이터 로드 함수
    */
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
       console.log('📁 채팅방 리스트 로드:', currentUserId);
       await chatLoadPosts({userId: currentUserId});
-  };
+  }, [currentUserId, chatLoadPosts]);
 
   /**
-   * 컴포넌트 마운트 시 초기 데이터 로드
+   * 화면 포커스 시 데이터 새로고침 (채팅방에서 뒤로가기 시에도 자동 새로고침)
+   * useFocusEffect 사용으로 채팅방에서 메시지 전송 후 뒤로가기 시 최신 상태 반영
+   */
+  useFocusEffect(
+    useCallback(() => {
+      console.log('=== ChatScreen 포커스됨 - 데이터 새로고침 ===');
+      if (currentUserId && currentUserId !== 'guest') {
+        loadInitialData();
+      }
+    }, [currentUserId])
+  );
+
+  /**
+   * 외부에서 새로고침 요청 시 처리
    */
   useEffect(() => {
-    console.log('=== Initial chat data load useEffect ===');
-    if (currentUserId && currentUserId !== 'guest') {
-      loadInitialData();
+    if (onRefreshRequest) {
+      // 새로고침 요청 리스너 등록
+      const handleRefresh = () => {
+        console.log('🔄 [ChatScreen] 외부 새로고침 요청 수신');
+        if (currentUserId && currentUserId !== 'guest') {
+          loadInitialData();
+        }
+      };
+      
+      // 콜백을 전역으로 등록 (React Native에서는 global 사용)
+      (global as any).refreshChatScreen = handleRefresh;
+      
+      return () => {
+        delete (global as any).refreshChatScreen;
+      };
     }
-  }, [currentUserId]); // currentUserId가 변경될 때마다 리로드
+  }, [onRefreshRequest, currentUserId]);
 
-  const handlePostPress = (post: ChatRoomPostsValue) => {
-    console.log('🎯 [STEP 1] 채팅방 클릭됨:', {
-      roomId: post.roomId,
-      roomName: post.roomName,
-      lastMessage: post.lastMessage
+  /**
+   * 앱 상태 변화 감지 - 백그라운드에서 포그라운드로 돌아올 때 새로고침
+   */
+  useEffect(() => {
+    console.log('📱 [ChatScreen] AppState 리스너 등록');
+    
+    let appStateSubscription: any;
+    let previousAppState = AppState.currentState;
+    
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      console.log('📱 [ChatScreen] AppState 변화:', {
+        previous: previousAppState,
+        current: nextAppState
+      });
+      
+      // 백그라운드에서 포그라운드로 돌아올 때
+      if (previousAppState !== 'active' && nextAppState === 'active') {
+        console.log('🌅 [ChatScreen] 앱이 포그라운드로 돌아옴 - 데이터 새로고침');
+        if (currentUserId && currentUserId !== 'guest') {
+          loadInitialData();
+        }
+      }
+      
+      previousAppState = nextAppState;
+    };
+    
+    // AppState 리스너 등록
+    appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      console.log('🧹 [ChatScreen] AppState 리스너 해제');
+      if (appStateSubscription) {
+        appStateSubscription.remove();
+      }
+    };
+  }, [currentUserId, loadInitialData]);
+
+  /**
+   * FCM 메시지 처리 리스너 설정
+   */
+  useEffect(() => {
+    console.log('📡 [ChatScreen] FCM 리스너 설정');
+    
+    // 포그라운드 메시지 리스너
+    const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
+      console.log('📥 [ChatScreen] FCM 메시지 수신:', remoteMessage);
+      
+      // FCM 메시지에서 roomId와 메시지 내용 추출
+      const fcmRoomId = remoteMessage.data?.roomId as string;
+      const messageText = remoteMessage.notification?.body || (remoteMessage.data?.message as string);
+      const sender = remoteMessage.data?.sender || remoteMessage.data?.userName || 'Unknown';
+      const timestamp = remoteMessage.data?.sentTime as string;
+      
+      if (fcmRoomId && messageText) {
+        console.log('🔥 [ChatScreen] 채팅방 리스트 업데이트:', {
+          roomId: fcmRoomId,
+          message: messageText,
+          sender: sender
+        });
+        
+        // 채팅방 리스트에서 해당 roomId의 마지막 메시지와 카운터 업데이트
+        if (updateLastMessage && updateUnreadCount) {
+          updateLastMessage(fcmRoomId, messageText, timestamp || '');
+          updateUnreadCount(fcmRoomId, 1);
+        }
+      }
     });
     
+    // 백그라운드/종료 상태에서 앱 열릴 때 메시지 처리
+    messaging()
+      .getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage) {
+          console.log('🚀 [ChatScreen] 앱이 종료 상태에서 FCM으로 열림:', remoteMessage);
+          handleFCMMessage(remoteMessage);
+        }
+      });
+    
+    // 백그라운드에서 알림 터치로 앱 열릴 때
+    const unsubscribeBackground = messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log('🚀 [ChatScreen] 백그라운드에서 FCM으로 앱 열림:', remoteMessage);
+      handleFCMMessage(remoteMessage);
+    });
+    
+    return () => {
+      console.log('🧹 [ChatScreen] FCM 리스너 해제');
+      unsubscribeForeground();
+      unsubscribeBackground();
+    };
+  }, [updateUnreadCount, updateLastMessage]);
+  
+  // FCM 메시지 처리 함수
+  const handleFCMMessage = (remoteMessage: any) => {
+    const fcmRoomId = remoteMessage.data?.roomId as string;
+    const messageText = remoteMessage.notification?.body || (remoteMessage.data?.message as string);
+    const sender = remoteMessage.data?.sender || remoteMessage.data?.userName || 'Unknown';
+    const timestamp = remoteMessage.data?.sentTime as string;
+    
+    if (fcmRoomId && messageText && updateLastMessage && updateUnreadCount) {
+      console.log('🔥 [ChatScreen] FCM 메시지 처리:', {
+        roomId: fcmRoomId,
+        message: messageText,
+        sender: sender
+      });
+      
+      updateLastMessage(fcmRoomId, messageText, timestamp || '');
+      updateUnreadCount(fcmRoomId, 1);
+    }
+  };
+
+  const handlePostPress = (post: ChatRoomPostsValue) => {
+    // null/undefined 체크
+    if (!post) {
+      console.warn('⚠️ handlePostPress: post가 null 또는 undefined입니다.');
+      return;
+    }
+    
+    const safeRoomId = post.roomId || '';
+    const safeRoomName = post.roomName || '채팅방';
+    const safeLastMessage = post.lastMessage || '';
+    
+    console.log('🎯 [STEP 1] 채팅방 클릭됨:', {
+      roomId: safeRoomId,
+      roomName: safeRoomName,
+      lastMessage: safeLastMessage
+    });
+    
+    // 채팅방 진입 시 읽지 않은 메시지 카운터 리셋
+    const unreadCount = Number(post.unreadCount) || 0;
+    if (unreadCount > 0 && resetUnreadCount && safeRoomId) {
+      resetUnreadCount(safeRoomId);
+    }
+    
     try{
-        if (typeof onChatNavigateToPost === 'function') { // 함수인지 명시적으로 확인
-          console.log('🎯 [STEP 2] onChatNavigateToPost 콜백 호출:', post.roomId);
-          onChatNavigateToPost(post.roomId);
+        if (typeof onChatNavigateToPost === 'function' && safeRoomId) { // 함수인지 명시적으로 확인
+          console.log('🎯 [STEP 2] onChatNavigateToPost 콜백 호출:', safeRoomId);
+          onChatNavigateToPost(safeRoomId);
           console.log('🎯 [STEP 3] 콜백 호출 완료');
         } else {
-          console.warn('⚠️ onChatNavigateToPost 함수가 정의되지 않았습니다.');
+          console.warn('⚠️ onChatNavigateToPost 함수가 정의되지 않았거나 roomId가 비어있습니다.');
         }
     }catch(e){
       console.error('❌ 채팅방 이동 중 에러:', e);
@@ -60,96 +216,189 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost}) => {
   };
 
   // 시간 포맷팅 함수
-  const formatTime = (timeString?: string) => {
-    if (!timeString) {return '';}
+  const formatTime = (timeString?: string): string => {
+    try {
+      if (!timeString || typeof timeString !== 'string') {
+        return '';
+      }
 
-    const now = new Date();
-    const messageTime = new Date(timeString);
-    const diffInHours = (now.getTime() - messageTime.getTime()) / (1000 * 60 * 60);
-
-    if (diffInHours < 1) {
-      const minutes = Math.floor(diffInHours * 60);
-      return minutes <= 0 ? '방금' : `${minutes}분 전`;
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}시간 전`;
-    } else {
-      return messageTime.toLocaleDateString('ko-KR', {
-        month: 'short',
-        day: 'numeric',
-      });
+      const now = new Date();
+      const messageTime = new Date(timeString);
+      
+      // 유효한 날짜인지 확인
+      if (isNaN(messageTime.getTime())) {
+        return '';
+      }
+      
+      // 오늘 날짜와 비교
+      const nowDateStr = now.toDateString();
+      const messageDateStr = messageTime.toDateString();
+      
+      if (nowDateStr === messageDateStr) {
+        // 오늘 날짜와 같으면: "09:56:29" → "09:56"
+        const hours = messageTime.getHours().toString().padStart(2, '0');
+        const minutes = messageTime.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+      } else {
+        // 날짜가 다름
+        if (now.getFullYear() === messageTime.getFullYear()) {
+          // 년도가 같으면: "08-08"
+          const month = (messageTime.getMonth() + 1).toString().padStart(2, '0');
+          const day = messageTime.getDate().toString().padStart(2, '0');
+          return `${month}-${day}`;
+        } else {
+          // 년도가 다르면: "2025.08.08"
+          const year = messageTime.getFullYear();
+          const month = (messageTime.getMonth() + 1).toString().padStart(2, '0');
+          const day = messageTime.getDate().toString().padStart(2, '0');
+          return `${year}.${month}.${day}`;
+        }
+      }
+    } catch (error) {
+      console.warn('⚙️ formatTime 오류:', error);
+      return '';
     }
   };
 
   // 기본 프로필 이미지 생성 함수
-  const getDefaultProfileImage = (roomName: string) => {
+  const getDefaultProfileImage = (roomName?: string) => {
+    if (!roomName || roomName.length === 0) {
+      return '?'; // 기본값
+    }
     const firstChar = roomName.charAt(0).toUpperCase();
     return firstChar;
   };
 
-  const renderItem = ({ item }: { item: ChatRoomPostsValue }) => (
-    <TouchableOpacity
-      style={styles.itemContainer}
-      onPress={() => handlePostPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.contentContainer}>
-        {/* 프로필 이미지 영역 */}
-        <View style={styles.profileContainer}>
-          {item.profileImage ? (
-            <Image source={{ uri: item.profileImage }} style={styles.profileImage} />
-          ) : (
-            <View style={styles.defaultProfileImage}>
-              <Text style={styles.defaultProfileText}>
-                {getDefaultProfileImage(item.roomName)}
-              </Text>
-            </View>
-          )}
-          {/* 온라인 상태 표시 */}
-          {item.isOnline && <View style={styles.onlineIndicator} />}
-        </View>
-
-        {/* 메시지 내용 영역 */}
-        <View style={styles.messageContainer}>
-          <View style={styles.topRow}>
-            <Text style={styles.roomName} numberOfLines={1}>
-              {item.roomName}
-            </Text>
-            {item.memberCount && item.memberCount > 2 && (
-              <Text style={styles.memberCount}>{item.memberCount}</Text>
+  const renderItem = ({ item }: { item: ChatRoomPostsValue }) => {
+    // null/undefined 체크
+    if (!item) {
+      return null;
+    }
+    
+    // 안전한 데이터 처리
+    const safeRoomName = item?.roomName || '채팅방';
+    const safeLastMessage = item?.lastMessage || '';
+    const safeLastType = item?.lastType || 'TALK';
+    const safeUnreadCount = Number(item?.unreadCount) || 0;
+    const safeMemberCount = Number(item?.memberCount) || 0;
+    const safeTime = formatTime(item?.lastMessageTime) || '';
+    
+    // 마지막 메시지 표시
+    const displayMessage = safeLastType === 'IMAGE' 
+      ? '📷 이미지' 
+      : (safeLastMessage && safeLastMessage.trim() !== '') 
+        ? safeLastMessage 
+        : '새로운 채팅방입니다.';
+    
+    // 카운터 표시
+    const displayCount = safeUnreadCount > 99 ? '99+' : String(safeUnreadCount);
+    
+    return (
+      <TouchableOpacity
+        style={styles.itemContainer}
+        onPress={() => handlePostPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.contentContainer}>
+          {/* 프로필 이미지 영역 */}
+          <View style={styles.profileContainer}>
+            {item.profileImage ? (
+              <Image source={{ uri: item.profileImage }} style={styles.profileImage} />
+            ) : (
+              <View style={styles.defaultProfileImage}>
+                <Text style={styles.defaultProfileText}>
+                  {getDefaultProfileImage(safeRoomName)}
+                </Text>
+              </View>
             )}
+            {/* 온라인 상태 표시 */}
+            {item.isOnline && <View style={styles.onlineIndicator} />}
           </View>
 
-          <Text style={styles.lastMessage} numberOfLines={2}>
-            {item.lastMessage || '새로운 채팅방입니다.'}
-          </Text>
-        </View>
-
-        {/* 시간 및 읽지 않은 메시지 수 영역 */}
-        <View style={styles.rightContainer}>
-          <Text style={styles.timeText}>
-            {formatTime(item.lastMessageTime)}
-          </Text>
-          {item.unreadCount && item.unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>
-                {item.unreadCount > 99 ? '99+' : item.unreadCount}
+          {/* 메시지 내용 영역 */}
+          <View style={styles.messageContainer}>
+            <View style={styles.topRow}>
+              <Text style={styles.roomName} numberOfLines={1}>
+                {safeRoomName}
               </Text>
+              {safeMemberCount > 2 && (
+                <Text style={styles.memberCount}>
+                  {String(safeMemberCount)}
+                </Text>
+              )}
             </View>
-          )}
+
+            <Text style={styles.lastMessage} numberOfLines={2}>
+              {displayMessage}
+            </Text>
+          </View>
+
+          {/* 시간 및 읽지 않은 메시지 수 영역 */}
+          <View style={styles.rightContainer}>
+            <Text style={styles.timeText}>
+              {safeTime}
+            </Text>
+            {safeUnreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadText}>
+                  {displayCount}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={posts}
-        renderItem={renderItem}
-        keyExtractor={(item, index) => `post-${item.id || index}`}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-      />
+      {posts && Array.isArray(posts) && posts.length > 0 ? (
+        <FlatList
+          data={posts.filter(item => item != null)} // null/undefined 제거
+          renderItem={renderItem}
+          keyExtractor={(item, index) => {
+            // 안전한 키 생성
+            try {
+              const safeId = item?.id || item?.roomId || `item-${index}`;
+              return String(safeId);
+            } catch (error) {
+              console.warn('⚠️ keyExtractor 오류:', error);
+              return `error-item-${index}`;
+            }
+          }}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => {
+            try {
+              return <View style={styles.separator || { height: 1, backgroundColor: '#f0f0f0' }} />;
+            } catch (error) {
+              console.warn('⚠️ ItemSeparatorComponent 오류:', error);
+              return <View style={{ height: 1, backgroundColor: '#f0f0f0' }} />;
+            }
+          }}
+          extraData={posts}
+          removeClippedSubviews={true}
+          initialNumToRender={10}
+          maxToRenderPerBatch={5}
+          windowSize={10}
+          getItemLayout={undefined}
+        />
+      ) : (
+        <View style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20
+        }}>
+          <Text style={{
+            fontSize: 16,
+            color: '#666',
+            textAlign: 'center'
+          }}>
+            {posts && Array.isArray(posts) ? '채팅방이 없습니다.' : '로딩 중...'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };

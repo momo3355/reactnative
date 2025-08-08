@@ -40,7 +40,6 @@ const BoardInsertDataScreen: React.FC<BoardInsertDataScreenProps> = ({
 
   const {
     success,
-    detailError,
     insertData
   } = usePostStore();
 

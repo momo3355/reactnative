@@ -126,32 +126,75 @@ export const useChatWebSocket = ({
         return;
       }
 
-      console.log('\n=== 📝 메시지 정규화 시작 ===');
-      console.log('💬 수신된 데이터:');
-      console.log('  - userList:', receivedMessage.userList);
-      console.log('  - isRead:', receivedMessage.isRead);
-      console.log('  - 기존 reUserId:', receivedMessage.reUserId);
-      
-      let reUserId = '';
-      if (receivedMessage.userList && receivedMessage.userList.length > 0) {
-        // 🔥 userList 전체 배열을 쉼표로 구분된 문자열로 변환
-        reUserId = receivedMessage.userList.join(',');
+      // 🔥 자신이 보낸 메시지 처리: 중복 방지하되 isRead 업데이트는 반영
+      if (receivedMessage.sender === userId) {
+        console.log('🔄 [WebSocket] 자신이 보낸 메시지 - isRead 업데이트 체크:', {
+          message: receivedMessage.message,
+          isRead: receivedMessage.isRead,
+          messageId: receivedMessage.id
+        });
         
-        // 🔥 중복 사용자 검사
-        const duplicates = receivedMessage.userList.filter((item, index) => receivedMessage.userList.indexOf(item) !== index);
-        if (duplicates.length > 0) {
-          console.log('\n⭕ 수신된 메시지에서 중복 사용자 발견!');
-          console.log('📝 메시지:', receivedMessage.message?.substring(0, 30) + '...');
-          console.log('👥 userList 원본:', receivedMessage.userList);
-          console.log('🔄 중복된 사용자들:', [...new Set(duplicates)]);
-          console.log('📊 생성될 reUserId:', reUserId);
+        // 🔥 자신이 보낸 메시지라도 isRead 값이 있으면 기존 메시지 업데이트
+        if (receivedMessage.isRead && receivedMessage.isRead !== '0') {
+          // 🔥 userList를 reUserId에 설정
+          let myMessageReUserId = '';
+          const myUserList = receivedMessage.userList;
+          if (myUserList && Array.isArray(myUserList)) {
+            myMessageReUserId = myUserList.join(',');
+          }
+          
+          const updateMessage: MessgeInfoValue = {
+            ...receivedMessage,
+            id: receivedMessage.id || `server_${Date.now()}`,
+            cretDate: receivedMessage.cretDate || new Date().toLocaleString('sv-SE').replace('T', ' ').substring(0, 19),
+            reUserId: myMessageReUserId, // 🔥 userList 값 사용
+            userList: receivedMessage.userList || [],
+          };
+          
+          console.log('✅ [WebSocket] 자신의 메시지 isRead 업데이트:', {
+            messageId: updateMessage.id,
+            isRead: updateMessage.isRead,
+            reUserId: updateMessage.reUserId,
+            userList: updateMessage.userList,
+            message: updateMessage.message
+          });
+          
+          onMessageReceived(updateMessage);
+        } else {
+          console.log('🚫 [WebSocket] 자신의 메시지 무시 (isRead 업데이트 없음)');
         }
+        return;
+      }
+
+      // 🔥 userList 체크 - 현재 사용자가 수신 대상인지 확인
+      let isUserInList = false;
+      let reUserId = ''; // 기본값
+      const userList = receivedMessage.userList;
+      
+      if (userList && Array.isArray(userList)) {
+        isUserInList = true; // 🔥 언제나 true로 설정하여 메시지 무시 방지
         
-        console.log('👥 reUserId 변환 과정:');
-        console.log('  - userList 배열:', receivedMessage.userList);
-        console.log('  - join(",") 결과:', reUserId);
+        // 🔥 userList의 모든 사용자를 reUserId에 설정 (읽음 처리용)
+        // 상대방이 방에 입장할 때 이 사용자들에 대해 읽음 처리가 됨
+        reUserId = userList.join(',');
+        
+        console.log('👥 [WebSocket] userList 체크:', {
+          currentUserId: userId,
+          userList: userList,
+          isUserInList,
+          reUserId
+        });
       } else {
-        console.log('👥 userList가 비어있음 - reUserId도 비어있음');
+        // userList가 없거나 배열이 아닌 경우 모든 사용자에게 전송된 것으로 간주
+        isUserInList = true;
+        reUserId = ''; // userList가 없으면 비워둔 채로 둘어둘검
+        console.log('👥 [WebSocket] userList가 없음 - 모든 사용자 대상 메시지로 처리, reUserId:', reUserId);
+      }
+
+      // 🔥 현재 사용자가 수신 대상이 아닌 경우 메시지 무시
+      if (!isUserInList) {
+        console.log('🚫 [WebSocket] 현재 사용자가 수신 대상이 아님 - 메시지 무시');
+        return;
       }
 
       const normalizedMessage: MessgeInfoValue = {
@@ -162,21 +205,23 @@ export const useChatWebSocket = ({
         isRead: receivedMessage.isRead || '0', // 🔥 수신된 메시지의 isRead 값을 그대로 사용
         userList: receivedMessage.userList || [],
       };
-
-      console.log('\n=== 🔄 메시지 정규화 완료 ===');
-      console.log('📝 정규화된 메시지 최종 결과:');
-      console.log('  - ID:', normalizedMessage.id);
-      console.log('  - sender:', normalizedMessage.sender);
-      console.log('  - message:', normalizedMessage.message?.substring(0, 30) + '...');
-      console.log('  - isRead:', normalizedMessage.isRead);
-      console.log('  - reUserId:', `"${normalizedMessage.reUserId}"`);
-      console.log('  - userList:', normalizedMessage.userList);
-      console.log('=== 🔄 정규화 완료 ===\n');
+      
+      // 🔥 메시지 isRead 값 디버깅
+      console.log('📨 [WebSocket] 메시지 isRead 디버깅:', {
+        messageId: normalizedMessage.id,
+        message: normalizedMessage.message?.substring(0, 20) + '...',
+        originalIsRead: receivedMessage.isRead,
+        normalizedIsRead: normalizedMessage.isRead,
+        sender: normalizedMessage.sender,
+        isMyMessage: normalizedMessage.sender === userId
+      });
+      
+      console.log('✅ [WebSocket] 메시지 처리 완료 - onMessageReceived 호출');
       onMessageReceived(normalizedMessage);
     } catch (error) {
       console.error('메시지 파싱 오류:', error);
     }
-  }, [onMessageReceived, onUserEntered]);
+  }, [onMessageReceived, onUserEntered, userId]); // 🔥 userId 의존성 추가
 
   // 🔥 방 입장 메시지 전송 함수 (강화된 검증)
   const sendRoomEnterMessage = useCallback(() => {
