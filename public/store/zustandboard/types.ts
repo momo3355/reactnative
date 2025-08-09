@@ -110,7 +110,7 @@ export interface ChatPostState {
     chatFileUpload: (params: SearchChatRoomParams) => Promise<ChatFileUploadResponse>;
     loadMessgeInfoPosts: (params: SearchMessgeInfoParams) => Promise<MessgeInfoResponse>;
     updateUnreadCount: (roomId: string, increment: number) => void;
-    updateLastMessage: (roomId: string, message: string, timestamp?: string) => void;
+    updateLastMessage: (roomId: string, message: string, timestamp?: string, messageType?: string) => void;
     resetUnreadCount: (roomId: string) => void;
 }
 

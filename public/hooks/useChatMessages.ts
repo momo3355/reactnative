@@ -204,17 +204,47 @@ export const useChatMessages = (roomId: string, userId: string) => {
       isRead: newMessage.isRead,
       sender: newMessage.sender,
       type: newMessage.type,
+      imageInfo: newMessage.imageInfo // 이미지 정보 추가
     });
+    
+    // 이미지 메시지인 경우 추가 로그
+    if (newMessage.type === 'IMAGE') {
+      console.log('🖼️ [IMAGE MESSAGE] 이미지 메시지 추가:', {
+        messageId: newMessage.id,
+        imageInfo: newMessage.imageInfo,
+        sender: newMessage.sender,
+        isMyMessage: newMessage.sender === userId
+      });
+    }
 
     setMessages(prev => {
+      // 🔥 안전성 검사: newMessage.id가 존재하고 문자열인지 확인
+      if (!newMessage.id || typeof newMessage.id !== 'string') {
+        console.error('⚠️ [useChatMessages] 잘못된 메시지 ID:', newMessage.id, '메시지 내용:', newMessage.message?.substring(0, 20));
+        // 안전한 ID 생성
+        const safeMessage = {
+          ...newMessage,
+          id: `safe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        };
+        console.log('➡️ [useChatMessages] 안전한 ID로 메시지 추가:', safeMessage.id);
+        return [safeMessage, ...prev];
+      }
+
       // 🔥 자신이 보낸 메시지의 경우 기존 임시 메시지를 찾아서 업데이트
       if (newMessage.sender === userId && newMessage.isRead && newMessage.isRead !== '0') {
-        const tempMessageIndex = prev.findIndex(msg =>
-          msg.sender === userId &&
-          msg.message === newMessage.message &&
-          msg.id.startsWith('temp_') &&
-          Math.abs(new Date(msg.cretDate).getTime() - new Date(newMessage.cretDate).getTime()) < 10000 // 10초 이내
-        );
+        const tempMessageIndex = prev.findIndex(msg => {
+          // 🔥 안전성 검사: msg.id가 존재하고 문자열인지 확인
+          if (!msg.id || typeof msg.id !== 'string') {
+            return false;
+          }
+          
+          return (
+            msg.sender === userId &&
+            msg.message === newMessage.message &&
+            msg.id.startsWith('temp_') &&
+            Math.abs(new Date(msg.cretDate).getTime() - new Date(newMessage.cretDate).getTime()) < 10000 // 10초 이내
+          );
+        });
 
         if (tempMessageIndex !== -1) {
           console.log('🔄 [useChatMessages] 임시 메시지를 서버 메시지로 갱신:', {

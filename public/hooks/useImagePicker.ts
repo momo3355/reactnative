@@ -297,24 +297,41 @@ export const useImagePicker = (
 
     try {
       setIsUploadingImages(true);
+      console.log('📸 이미지 업로드 시작:', selectedImages.length, '개');
 
       for (const image of selectedImages) {
         try {
+          console.log('🔄 이미지 업로드 시도:', {
+            name: image.name,
+            uri: image.uri,
+            size: image.size
+          });
+          
           const uploadResult = await uploadImageToServer(image.uri, image.name);
+          console.log('✅ 업로드 성공:', uploadResult);
 
           if (uploadResult.success && uploadResult.fileInfo) {
-            await sendMessage('IMAGE', '', uploadResult.fileInfo.savedName);
+            console.log('📧 메시지 전송 시도:', {
+              type: 'IMAGE',
+              message: '',
+              imageInfo: uploadResult.fileInfo.savedName
+            });
+            
+            const sendResult = await sendMessage('IMAGE', '', uploadResult.fileInfo.savedName);
+            console.log('📨 메시지 전송 결과:', sendResult);
+            
             await new Promise(resolve => setTimeout(resolve, 100)); // 업로드 간격
           }
         } catch (error) {
-          console.error('개별 이미지 업로드 실패:', error);
+          console.error('❌ 개별 이미지 업로드 실패:', error);
           Alert.alert('오류', `${image.name} 업로드에 실패했습니다.`);
         }
       }
 
       setSelectedImages([]);
+      console.log('✅ 모든 이미지 업로드 완료');
     } catch (error) {
-      console.error('이미지 업로드 오류:', error);
+      console.error('❌ 이미지 업로드 오류:', error);
       Alert.alert('오류', '이미지 업로드 중 오류가 발생했습니다.');
     } finally {
       setIsUploadingImages(false);

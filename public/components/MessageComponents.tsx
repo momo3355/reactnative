@@ -12,27 +12,25 @@ export const ReadStatus: React.FC<{
   const safeIsRead = isRead || '0';
   const readCount = parseInt(safeIsRead, 10);
 
-  // 🔥 디버깅용 로그 추가
-  console.log('👀 ReadStatus 디버깅:', {
-    isRead,
-    safeIsRead,
-    readCount,
-    isMyMessage,
-    willShow: !isNaN(readCount) && readCount > 0
-  });
-
-  if (isNaN(readCount) || readCount <= 0) {return null;}
+  // 읽음 수가 0 이하이거나 유효하지 않으면 렌더링하지 않음
+  if (isNaN(readCount) || readCount <= 0) {
+    return null;
+  }
 
   return (
     <Text style={{
       fontSize: 10,
-      color: '#FEE500', // 🔥 모든 메시지 읽음표시 카카오 에로우로 통일
+      color: '#FEE500',
       fontWeight: '600',
       textAlign: 'center',
     }}>
       {readCount}
     </Text>
   );
+}, (prevProps, nextProps) => {
+  // 상세한 비교로 불필요한 리렌더링 방지
+  return prevProps.isRead === nextProps.isRead && 
+         prevProps.isMyMessage === nextProps.isMyMessage;
 });
 
 // 날짜 구분선 컴포넌트

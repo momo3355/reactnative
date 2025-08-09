@@ -116,24 +116,53 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost, onRefresh
     const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
       console.log('📥 [ChatScreen] FCM 메시지 수신:', remoteMessage);
       
-      // FCM 메시지에서 roomId와 메시지 내용 추출
+      // 🔥 더 자세한 데이터 추출
       const fcmRoomId = remoteMessage.data?.roomId as string;
-      const messageText = remoteMessage.notification?.body || (remoteMessage.data?.message as string);
+      const messageText = remoteMessage.notification?.body || (remoteMessage.data?.message as string) || '';
+      const messageType = remoteMessage.data?.type as string || 'TALK'; // 🔥 메시지 타입 추가
       const sender = remoteMessage.data?.sender || remoteMessage.data?.userName || 'Unknown';
       const timestamp = remoteMessage.data?.sentTime as string;
+      const imageInfo = remoteMessage.data?.imageInfo as string; // 🔥 이미지 정보 추가
       
-      if (fcmRoomId && messageText) {
+      console.log('🔍 [ChatScreen] FCM 데이터 파싱 결과:', {
+        roomId: fcmRoomId,
+        messageType: messageType,
+        messageText: messageText,
+        sender: sender,
+        imageInfo: imageInfo
+      });
+      
+      if (fcmRoomId) {
         console.log('🔥 [ChatScreen] 채팅방 리스트 업데이트:', {
           roomId: fcmRoomId,
-          message: messageText,
+          type: messageType,
+          message: messageType === 'IMAGE' ? '사진을 보냈습니다.' : messageText,
           sender: sender
         });
         
+        // 🔥 이미지 메시지인 경우 표시 메시지 변경
+        const displayMessage = messageType === 'IMAGE' ? '사진을 보냈습니다.' : messageText;
+        
         // 채팅방 리스트에서 해당 roomId의 마지막 메시지와 카운터 업데이트
         if (updateLastMessage && updateUnreadCount) {
-          updateLastMessage(fcmRoomId, messageText, timestamp || '');
+          // 🔥 마지막 메시지 업데이트 (타입 정보 포함)
+          updateLastMessage(fcmRoomId, displayMessage, timestamp || '', messageType);
           updateUnreadCount(fcmRoomId, 1);
+          
+          console.log('✅ [ChatScreen] 카운터 업데이트 완료');
+        } else {
+          console.error('❌ [ChatScreen] updateLastMessage 또는 updateUnreadCount 함수가 없음');
         }
+        
+        // 🔥 데이터 새로고침 (중요!)
+        setTimeout(() => {
+          console.log('🔄 [ChatScreen] FCM 후 데이터 새로고침 실행');
+          if (currentUserId && currentUserId !== 'guest') {
+            loadInitialData();
+          }
+        }, 500); // 500ms 후 새로고침
+      } else {
+        console.warn('⚠️ [ChatScreen] FCM 메시진에 roomId가 없음');
       }
     });
     
@@ -158,24 +187,59 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost, onRefresh
       unsubscribeForeground();
       unsubscribeBackground();
     };
-  }, [updateUnreadCount, updateLastMessage]);
+  }, [updateUnreadCount, updateLastMessage, currentUserId, loadInitialData]); // 🔥 loadInitialData 의존성 추가
   
-  // FCM 메시지 처리 함수
+  // FCM 메시지 처리 함수 (백그라운드/종료 상태에서 앱 열 때)
   const handleFCMMessage = (remoteMessage: any) => {
+    console.log('🔍 [ChatScreen] handleFCMMessage 실행:', remoteMessage);
+    
     const fcmRoomId = remoteMessage.data?.roomId as string;
-    const messageText = remoteMessage.notification?.body || (remoteMessage.data?.message as string);
+    const messageText = remoteMessage.notification?.body || (remoteMessage.data?.message as string) || '';
+    const messageType = remoteMessage.data?.type as string || 'TALK'; // 🔥 메시지 타입 추가
     const sender = remoteMessage.data?.sender || remoteMessage.data?.userName || 'Unknown';
     const timestamp = remoteMessage.data?.sentTime as string;
+    const imageInfo = remoteMessage.data?.imageInfo as string; // 🔥 이미지 정보 추가
     
-    if (fcmRoomId && messageText && updateLastMessage && updateUnreadCount) {
-      console.log('🔥 [ChatScreen] FCM 메시지 처리:', {
+    console.log('🔍 [ChatScreen] handleFCMMessage 데이터 파싱:', {
+      roomId: fcmRoomId,
+      messageType: messageType,
+      messageText: messageText,
+      sender: sender,
+      imageInfo: imageInfo
+    });
+    
+    if (fcmRoomId) {
+      console.log('🔥 [ChatScreen] handleFCMMessage - 채팅방 리스트 업데이트:', {
         roomId: fcmRoomId,
-        message: messageText,
+        type: messageType,
+        message: messageType === 'IMAGE' ? '사진을 보냈습니다.' : messageText,
         sender: sender
       });
       
-      updateLastMessage(fcmRoomId, messageText, timestamp || '');
-      updateUnreadCount(fcmRoomId, 1);
+      // 🔥 이미지 메시지인 경우 표시 메시지 변경
+      const displayMessage = messageType === 'IMAGE' ? '사진을 보냈습니다.' : messageText;
+      
+      if (updateLastMessage && updateUnreadCount) {
+        console.log('🔥 [ChatScreen] handleFCMMessage - 카운터 업데이트 실행');
+        
+        // 🔥 마지막 메시지 업데이트 (타입 정보 포함)
+        updateLastMessage(fcmRoomId, displayMessage, timestamp || '', messageType);
+        updateUnreadCount(fcmRoomId, 1);
+        
+        console.log('✅ [ChatScreen] handleFCMMessage - 카운터 업데이트 완료');
+        
+        // 🔥 데이터 새로고침 (중요!)
+        setTimeout(() => {
+          console.log('🔄 [ChatScreen] handleFCMMessage - 데이터 새로고침 실행');
+          if (currentUserId && currentUserId !== 'guest') {
+            loadInitialData();
+          }
+        }, 1000); // 1초 후 새로고침 (백그라운드에서 오는 경우 조금 더 기다림)
+      } else {
+        console.error('❌ [ChatScreen] handleFCMMessage - updateLastMessage 또는 updateUnreadCount 함수가 없음');
+      }
+    } else {
+      console.warn('⚠️ [ChatScreen] handleFCMMessage - roomId가 없음');
     }
   };
 
@@ -285,7 +349,7 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost, onRefresh
     
     // 마지막 메시지 표시 - 안전한 trim() 사용
     const displayMessage = safeLastType === 'IMAGE' 
-      ? '📷 이미지' 
+      ? '사진을 보냈습니다.' 
       : (safeLastMessage && typeof safeLastMessage === 'string' && safeLastMessage.trim() !== '') 
         ? safeLastMessage 
         : '새로운 채팅방입니다.';

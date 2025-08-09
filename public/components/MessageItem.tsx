@@ -59,7 +59,16 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(({
 
   // 🔥 이미지 URL 메모이제이션
   const imageUrl = useMemo(() => {
-    return isImageMessage && message ? getMessageImageUrl(message.imageInfo || '') : '';
+    if (isImageMessage && message) {
+      const url = getMessageImageUrl(message.imageInfo || '');
+      console.log('🖼️ 이미지 URL 생성:', {
+        messageId: message.id,
+        imageInfo: message.imageInfo,
+        generatedUrl: url
+      });
+      return url;
+    }
+    return '';
   }, [isImageMessage, message]);
 
   const formattedTime = useMemo(() => {

@@ -152,20 +152,21 @@ chatFileUpload: async (params: SearchChatRoomParams): Promise<ChatFileUploadResp
   },
 
   // FCM 메시지 수신 시 채팅방의 마지막 메시지 업데이트
-  updateLastMessage: (roomId: string, message: string, timestamp?: string) => {
+  updateLastMessage: (roomId: string, message: string, timestamp?: string, messageType?: string) => {
     set((state) => ({
       posts: state.posts.map(post => 
         post.roomId === roomId 
           ? { 
               ...post, 
               lastMessage: message,
-              lastMessageTime: timestamp || new Date().toISOString()
+              lastMessageTime: timestamp || new Date().toISOString(),
+              lastType: messageType || post.lastType || 'TALK' // 🔥 메시지 타입 업데이트
             }
           : post
       )
     }));
     
-    console.log('💬 [chatPostStore] 마지막 메시지 업데이트:', { roomId, message });
+    console.log('💬 [chatPostStore] 마지막 메시지 업데이트:', { roomId, message, messageType });
   },
 
   // 채팅방 진입 시 읽지 않은 메시지 카운터 리셋

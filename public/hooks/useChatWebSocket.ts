@@ -134,8 +134,11 @@ export const useChatWebSocket = ({
           messageId: receivedMessage.id
         });
         
-        // 🔥 자신이 보낸 메시지라도 isRead 값이 있으면 기존 메시지 업데이트
-        if (receivedMessage.isRead && receivedMessage.isRead !== '0') {
+        // 🔥 이미지 메시지는 언제나 UI에 표시, 텍스트 메시지는 isRead 업데이트가 있을 때만
+        const shouldProcess = receivedMessage.type === 'IMAGE' || 
+                             (receivedMessage.isRead && receivedMessage.isRead !== '0');
+        
+        if (shouldProcess) {
           // 🔥 userList를 reUserId에 설정
           let myMessageReUserId = '';
           const myUserList = receivedMessage.userList;
@@ -145,18 +148,20 @@ export const useChatWebSocket = ({
           
           const updateMessage: MessgeInfoValue = {
             ...receivedMessage,
-            id: receivedMessage.id || `server_${Date.now()}`,
+            id: receivedMessage.id && typeof receivedMessage.id === 'string' ? receivedMessage.id : `server_${Date.now()}`,
             cretDate: receivedMessage.cretDate || new Date().toLocaleString('sv-SE').replace('T', ' ').substring(0, 19),
             reUserId: myMessageReUserId, // 🔥 userList 값 사용
             userList: receivedMessage.userList || [],
           };
           
-          console.log('✅ [WebSocket] 자신의 메시지 isRead 업데이트:', {
+          console.log('✅ [WebSocket] 자신의 메시지 UI에 표시:', {
             messageId: updateMessage.id,
+            type: updateMessage.type,
             isRead: updateMessage.isRead,
             reUserId: updateMessage.reUserId,
             userList: updateMessage.userList,
-            message: updateMessage.message
+            message: updateMessage.message,
+            imageInfo: updateMessage.imageInfo
           });
           
           onMessageReceived(updateMessage);
@@ -199,7 +204,7 @@ export const useChatWebSocket = ({
 
       const normalizedMessage: MessgeInfoValue = {
         ...receivedMessage,
-        id: receivedMessage.id || Date.now().toString(),
+        id: receivedMessage.id && typeof receivedMessage.id === 'string' ? receivedMessage.id : `msg_${Date.now()}`,
         cretDate: receivedMessage.cretDate || new Date().toLocaleString('sv-SE').replace('T', ' ').substring(0, 19),
         reUserId: reUserId,
         isRead: receivedMessage.isRead || '0', // 🔥 수신된 메시지의 isRead 값을 그대로 사용
@@ -215,6 +220,17 @@ export const useChatWebSocket = ({
         sender: normalizedMessage.sender,
         isMyMessage: normalizedMessage.sender === userId
       });
+      
+      // 이미진 메시지 추가 로그
+      if (normalizedMessage.type === 'IMAGE') {
+        console.log('🖼️ [WebSocket] 이미지 메시지 수신:', {
+          messageId: normalizedMessage.id,
+          imageInfo: normalizedMessage.imageInfo,
+          sender: normalizedMessage.sender,
+          isMyMessage: normalizedMessage.sender === userId,
+          message: normalizedMessage.message
+        });
+      }
       
       console.log('✅ [WebSocket] 메시지 처리 완료 - onMessageReceived 호출');
       onMessageReceived(normalizedMessage);
@@ -546,7 +562,7 @@ export const useChatWebSocket = ({
 
     try {
       const messageToSend = {
-        id: Date.now().toString(),
+        id: `send_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // 🔥 고유한 ID 생성
         sender: userId,
         message,
         userName: userName,
