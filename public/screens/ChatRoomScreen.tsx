@@ -159,10 +159,10 @@ const ChatRoomScreen: React.FC<ChatRoomProps> = ({
     if (!inputMessage.trim() || !isConnected) {return;}
 
     const messageText = inputMessage.trim();
-    
+
     try {
       console.log('💬 텍스트 메시지 전송:', messageText);
-      
+
       // 🔥 Optimistic Update: 메시지 전송 즉시 UI에 추가
       const optimisticMessage: MessgeInfoValue = {
         id: `temp_${Date.now()}`, // 임시 ID (서버에서 온 메시지로 나중에 대체될 수 있음)
@@ -177,16 +177,16 @@ const ChatRoomScreen: React.FC<ChatRoomProps> = ({
         userList: [],
         imageInfo: undefined,
       };
-      
+
       // 즉시 UI에 메시지 추가
       addMessage(optimisticMessage);
-      
+
       // 입력창 초기화
       setInputMessage('');
-      
+
       // 서버로 메시지 전송
       const success = await sendWebSocketMessage('TALK', messageText);
-      
+
       if (success) {
         console.log('✅ 텍스트 메시지 전송 완료');
       } else {

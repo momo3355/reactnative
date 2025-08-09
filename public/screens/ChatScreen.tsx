@@ -277,16 +277,16 @@ const ChatScreen: React.FC<BoardScreenProps> = ({onChatNavigateToPost, onRefresh
     
     // 안전한 데이터 처리
     const safeRoomName = item?.roomName || '채팅방';
-    const safeLastMessage = item?.lastMessage || '';
+    const safeLastMessage = String(item?.lastMessage || ''); // 🔥 String()으로 감싸서 문자열 보장
     const safeLastType = item?.lastType || 'TALK';
     const safeUnreadCount = Number(item?.unreadCount) || 0;
     const safeMemberCount = Number(item?.memberCount) || 0;
     const safeTime = formatTime(item?.lastMessageTime) || '';
     
-    // 마지막 메시지 표시
+    // 마지막 메시지 표시 - 안전한 trim() 사용
     const displayMessage = safeLastType === 'IMAGE' 
       ? '📷 이미지' 
-      : (safeLastMessage && safeLastMessage.trim() !== '') 
+      : (safeLastMessage && typeof safeLastMessage === 'string' && safeLastMessage.trim() !== '') 
         ? safeLastMessage 
         : '새로운 채팅방입니다.';
     

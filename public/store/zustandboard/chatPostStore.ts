@@ -15,16 +15,35 @@ export const chatPostStore = create<ChatPostState>((set) => ({
       try{
           const data = await chatRoomList(params);          
           
+          // 🔥 서버에서 온 원본 데이터 디버깅
+          console.log('🔍 [chatPostStore] 서버 원본 데이터:', data);
+          console.log('🔍 [chatPostStore] roomList 배열:', data.roomList);
+          if (data.roomList && data.roomList.length > 0) {
+            console.log('🔍 [chatPostStore] 첫 번째 아이템:', data.roomList[0]);
+          }
+          
           // 배열 데이터를 객체로 변환
-          const convertedPosts = data.roomList.map((roomItem: any) => {
+          const convertedPosts = data.roomList.map((roomItem: any, index: number) => {
+            console.log(`🔍 [chatPostStore] 처리 중인 아이템 [${index}]:`, roomItem);
+            
             const [
               roomId,
+              , // userId 사용하지 않으므로 비워둡 (서버 데이터 순서: roomId, userId, roomName, ...)
               roomName, 
               unreadCount, 
               lastMessage, 
               lastType, 
               lastCretDate
             ] = roomItem;
+            
+            console.log(`🔍 [chatPostStore] 추출된 데이터 [${index}]:`, {
+              roomId, 
+              roomName, 
+              unreadCount, 
+              lastMessage, 
+              lastType, 
+              lastCretDate
+            });
             
             return {
               id: roomId,
